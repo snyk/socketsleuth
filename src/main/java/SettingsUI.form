@@ -6,7 +6,9 @@
       <xy x="20" y="20" width="934" height="666"/>
     </constraints>
     <properties/>
-    <border type="none"/>
+    <border type="empty">
+      <size top="10" left="10" bottom="10" right="10"/>
+    </border>
     <children>
       <component id="86dc7" class="javax.swing.JLabel">
         <constraints>
@@ -74,7 +76,7 @@
           </component>
         </children>
       </scrollpane>
-      <component id="3cfeb" class="javax.swing.JButton" binding="addButton1" default-binding="true">
+      <component id="3cfeb" class="javax.swing.JButton" binding="addMatchReplaceButton">
         <constraints>
           <grid row="7" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false">
             <maximum-size width="100" height="-1"/>
@@ -84,7 +86,7 @@
           <text value="Add"/>
         </properties>
       </component>
-      <component id="cb8de" class="javax.swing.JButton" binding="editButton1" default-binding="true">
+      <component id="cb8de" class="javax.swing.JButton" binding="editMatchReplaceButton">
         <constraints>
           <grid row="8" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false">
             <maximum-size width="100" height="-1"/>
@@ -94,7 +96,7 @@
           <text value="Edit"/>
         </properties>
       </component>
-      <component id="98aaa" class="javax.swing.JButton" binding="removeButton1" default-binding="true">
+      <component id="98aaa" class="javax.swing.JButton" binding="removeMatchReplaceButton">
         <constraints>
           <grid row="9" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false">
             <maximum-size width="100" height="-1"/>

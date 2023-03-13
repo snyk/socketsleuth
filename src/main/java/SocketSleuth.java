@@ -26,6 +26,8 @@ public class SocketSleuth implements BurpExtension {
 
     WebSocketInterceptionRulesTableModel interceptionRulesModel;
 
+    WebSocketMatchReplaceRulesTableModel matchReplaceRulesTableModel;
+
     @Override
     public void initialize(MontoyaApi api) {
         this.api = api;
@@ -33,6 +35,7 @@ public class SocketSleuth implements BurpExtension {
         // Main table model for websocket connections
         this.tableModel = new WebSocketConnectionTableModel();
         this.interceptionRulesModel = new WebSocketInterceptionRulesTableModel();
+        this.matchReplaceRulesTableModel = new WebSocketMatchReplaceRulesTableModel();
 
         api.extension().setName("SocketSleuth");
         api.userInterface().registerSuiteTab("SocketSleuth", constructBurpUi());
@@ -51,7 +54,7 @@ public class SocketSleuth implements BurpExtension {
     private Component constructSettingsTab() {
         settingsUI = new SettingsUI();
         settingsUI.getInterceptTable().setModel(this.interceptionRulesModel);
-        settingsUI.getMatchReplaceTable().setModel(new WebSocketInterceptionRulesTableModel());
+        settingsUI.getMatchReplaceTable().setModel(this.matchReplaceRulesTableModel);
 
         // Everything related to the "add" button for interception rules
         settingsUI.getAddInterceptButton().addActionListener(new ActionListener() {
@@ -189,6 +192,32 @@ public class SocketSleuth implements BurpExtension {
                 tableModel.fireTableDataChanged();
             }
         });
+
+        // Match and replace "add"
+        settingsUI.getAddMatchReplaceButton().addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                MatchReplaceEditWindow form = new MatchReplaceEditWindow();
+                JDialog popupDialog = new JDialog();
+                popupDialog.add(form.getContainer()); // add the formPanel to the popupDialog
+                popupDialog.setSize(410, 210);
+                popupDialog.setLocationRelativeTo(null);
+                popupDialog.setVisible(true);
+            }
+        });
+
+        // Remove button for match replace
+        /*settingsUI.getRemoveMatchReplaceButton().addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int[] selectedRows = settingsUI.getMatchReplaceTable().getSelectedRows();
+
+                for (int i = selectedRows.length - 1; i >= 0; i--) {
+                    matchReplaceRulesTableModel.removeRow(selectedRows[i]);
+                }
+                matchReplaceRulesTableModel.fireTableDataChanged();
+            }
+        });*/
 
         return settingsUI.getContainer();
     }
