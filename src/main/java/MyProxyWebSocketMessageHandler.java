@@ -17,18 +17,23 @@ class MyProxyWebSocketMessageHandler implements ProxyMessageHandler {
 
     WebSocketMatchReplaceRulesTableModel matchReplaceRules;
 
+    SocketCloseCallback socketCloseCallback;
+
     public MyProxyWebSocketMessageHandler(
             MontoyaApi api,
             WebSocketStreamTableModel streamModel,
             JTable streamTable,
             WebSocketInterceptionRulesTableModel interceptionRules,
-            WebSocketMatchReplaceRulesTableModel matchReplaceRules) {
+            WebSocketMatchReplaceRulesTableModel matchReplaceRules,
+            SocketCloseCallback socketCloseCallback
+    ) {
         this.api = api;
         this.logger = api.logging();
         this.streamModel = streamModel;
         this.streamTable = streamTable;
         this.interceptionRules = interceptionRules;
         this.matchReplaceRules = matchReplaceRules;
+        this.socketCloseCallback = socketCloseCallback;
     }
 
     // Strange - this seems to also catch messages being sent
@@ -258,5 +263,12 @@ class MyProxyWebSocketMessageHandler implements ProxyMessageHandler {
     @Override
     public BinaryMessageToBeSentAction handleBinaryMessageToBeSent(InterceptedBinaryMessage interceptedBinaryMessage) {
         return BinaryMessageToBeSentAction.continueWith(interceptedBinaryMessage);
+    }
+
+    @Override
+    public void onClose() {
+        ProxyMessageHandler.super.onClose();
+        api.logging().logToOutput("socket is closing - sad face");
+        this.socketCloseCallback.handleConnectionClosed();
     }
 }

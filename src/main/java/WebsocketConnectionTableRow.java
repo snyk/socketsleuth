@@ -6,6 +6,7 @@ public class WebsocketConnectionTableRow {
     private String url;
     private int listenerPort;
     private boolean tls;
+    private boolean active;
     private String comment;
 
     private WebSocketStreamTableModel streamModel;
@@ -18,11 +19,12 @@ public class WebsocketConnectionTableRow {
         this.streamModel = streamModel;
     }
 
-    public WebsocketConnectionTableRow(int socketId, String url, int listenerPort, boolean tls, String comment) {
+    public WebsocketConnectionTableRow(int socketId, String url, int listenerPort, boolean active, boolean tls, String comment) {
         this.socketId = socketId;
         this.url = url;
         this.listenerPort = listenerPort;
         this.tls = tls;
+        this.active = active;
         this.comment = comment;
         this.streamModel = new WebSocketStreamTableModel();
         //this.streamModel.addStream(new WebSocketStream(socketId, "test", "fake", 4, LocalDateTime.now(), ""));
@@ -54,6 +56,14 @@ public class WebsocketConnectionTableRow {
 
     public boolean isTls() {
         return tls;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 
     public void setTls(boolean tls) {

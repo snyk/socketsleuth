@@ -9,8 +9,8 @@ public class WebSocketConnectionTableModel extends AbstractTableModel {
     private static final long serialVersionUID = 1L;
 
     private List<WebsocketConnectionTableRow> connections = new ArrayList<>();
-    private String[] columns = { "Socket ID", "URL", "Port", "TLS", "Comment" };
-    private Class<?>[] columnTypes = { Integer.class, String.class, Integer.class, Boolean.class, String.class };
+    private String[] columns = { "Socket ID", "URL", "Port", "Active", "TLS", "Comment" };
+    private Class<?>[] columnTypes = { Integer.class, String.class, Integer.class, Boolean.class, Boolean.class, String.class };
 
     public void addConnection(WebsocketConnectionTableRow connection) {
         connections.add(connection);
@@ -51,8 +51,10 @@ public class WebSocketConnectionTableModel extends AbstractTableModel {
             case 2:
                 return connection.getListenerPort();
             case 3:
-                return connection.isTls();
+                return connection.isActive();
             case 4:
+                return connection.isTls();
+            case 5:
                 return connection.getComment();
             default:
                 return null;

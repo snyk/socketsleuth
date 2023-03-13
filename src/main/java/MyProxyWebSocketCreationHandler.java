@@ -51,6 +51,7 @@ class MyProxyWebSocketCreationHandler implements ProxyWebSocketCreationHandler {
                 this.connections.size(),
                 webSocketCreation.upgradeRequest().url(),
                 webSocketCreation.upgradeRequest().httpService().port(),
+                true,
                 webSocketCreation.upgradeRequest().httpService().secure(),
                 ""
         ));
@@ -75,7 +76,14 @@ class MyProxyWebSocketCreationHandler implements ProxyWebSocketCreationHandler {
                         container.getTableRow().getStreamModel(),
                         this.streamTable,
                         this.interceptionRules,
-                        this.matchReplaceRules
+                        this.matchReplaceRules,
+                        new SocketCloseCallback() {
+                            @Override
+                            public void handleConnectionClosed() {
+                                container.getTableRow().setActive(false);
+                                tableModel.fireTableDataChanged();
+                            }
+                        }
                 )
         );
         logger.logToOutput("Total sockets: " + this.connections.size());
