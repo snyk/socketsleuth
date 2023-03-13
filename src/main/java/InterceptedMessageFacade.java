@@ -5,8 +5,8 @@ import burp.api.montoya.websocket.Direction;
 
 public class InterceptedMessageFacade {
     private final boolean isText;
-    private final InterceptedTextMessage textMessage;
-    private final InterceptedBinaryMessage binaryMessage;
+    private InterceptedTextMessage textMessage;
+    private InterceptedBinaryMessage binaryMessage;
 
     public InterceptedMessageFacade(InterceptedTextMessage textMessage) {
         this.isText = true;
@@ -14,10 +14,43 @@ public class InterceptedMessageFacade {
         this.binaryMessage = null;
     }
 
+    public Object getInterceptedMessage() {
+        return isText ? textMessage : binaryMessage;
+    }
+
     public InterceptedMessageFacade(InterceptedBinaryMessage binaryMessage) {
         this.isText = false;
         this.textMessage = null;
         this.binaryMessage = binaryMessage;
+    }
+
+    public void setStringPayload(String payload) {
+        if (isText) {
+            modifyPayload(textMessage, payload);
+        } else {
+            modifyPayload(binaryMessage, payload);
+        }
+    }
+
+    public void setBytesPayload(byte[] payload) {
+        if (isText) {
+            modifyPayload(textMessage, new String(payload));
+        } else {
+            modifyPayload(binaryMessage, new String(payload));
+        }
+    }
+
+    private void modifyPayload(InterceptedTextMessage message, String payload) {
+        ModifiedTextMessage newMessage = new ModifiedTextMessage();
+        newMessage.setDirection(message.direction());
+        newMessage.setAnnotations(message.annotations());
+        newMessage.setPayload(payload);
+
+        this.textMessage = newMessage;
+    }
+
+    private void modifyPayload(InterceptedBinaryMessage message, String payload) {
+
     }
 
     public String stringPayload() {
@@ -38,5 +71,9 @@ public class InterceptedMessageFacade {
 
     public Annotations annotations() {
         return isText ? textMessage.annotations() : binaryMessage.annotations();
+    }
+
+    public boolean isText() {
+        return isText;
     }
 }

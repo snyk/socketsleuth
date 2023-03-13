@@ -46,7 +46,8 @@ public class SocketSleuth implements BurpExtension {
                 this.tableModel,
                 this.uiForm.getConnectionTable(),
                 this.uiForm.getStreamTable(),
-                this.interceptionRulesModel
+                this.interceptionRulesModel,
+                this.matchReplaceRulesTableModel
         );
         api.proxy().registerWebSocketCreationHandler(exampleWebSocketCreationHandler);
     }

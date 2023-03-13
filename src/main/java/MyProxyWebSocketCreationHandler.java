@@ -12,22 +12,19 @@ class MyProxyWebSocketCreationHandler implements ProxyWebSocketCreationHandler {
     Logging logger;
     MontoyaApi api;
     Map<Integer, WebSocketContainer> connections;
-
     WebSocketConnectionTableModel tableModel;
-
     JTable connectionTable;
-
     JTable streamTable;
-
     WebSocketInterceptionRulesTableModel interceptionRules;
+    WebSocketMatchReplaceRulesTableModel matchReplaceRules;
 
     public MyProxyWebSocketCreationHandler(
             MontoyaApi api,
             WebSocketConnectionTableModel tableModel,
             JTable connectionTable,
             JTable streamTable,
-            WebSocketInterceptionRulesTableModel interceptionRules
-    ) {
+            WebSocketInterceptionRulesTableModel interceptionRules,
+            WebSocketMatchReplaceRulesTableModel matchReplaceRules) {
         this.api = api;
         this.logger = api.logging();
         this.connections = new HashMap<>();
@@ -35,6 +32,7 @@ class MyProxyWebSocketCreationHandler implements ProxyWebSocketCreationHandler {
         this.connectionTable = connectionTable;
         this.streamTable = streamTable;
         this.interceptionRules = interceptionRules;
+        this.matchReplaceRules = matchReplaceRules;
     }
 
     @Override
@@ -76,7 +74,8 @@ class MyProxyWebSocketCreationHandler implements ProxyWebSocketCreationHandler {
                         this.api,
                         container.getTableRow().getStreamModel(),
                         this.streamTable,
-                        this.interceptionRules
+                        this.interceptionRules,
+                        this.matchReplaceRules
                 )
         );
         logger.logToOutput("Total sockets: " + this.connections.size());

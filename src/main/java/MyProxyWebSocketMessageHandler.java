@@ -1,8 +1,6 @@
 import burp.api.montoya.MontoyaApi;
-import burp.api.montoya.core.HighlightColor;
 import burp.api.montoya.logging.Logging;
 import burp.api.montoya.proxy.websocket.*;
-
 import javax.swing.*;
 import java.time.LocalDateTime;
 
@@ -17,20 +15,23 @@ class MyProxyWebSocketMessageHandler implements ProxyMessageHandler {
 
     WebSocketInterceptionRulesTableModel interceptionRules;
 
+    WebSocketMatchReplaceRulesTableModel matchReplaceRules;
+
     public MyProxyWebSocketMessageHandler(
             MontoyaApi api,
             WebSocketStreamTableModel streamModel,
             JTable streamTable,
-            WebSocketInterceptionRulesTableModel interceptionRules
-    ) {
+            WebSocketInterceptionRulesTableModel interceptionRules,
+            WebSocketMatchReplaceRulesTableModel matchReplaceRules) {
         this.api = api;
         this.logger = api.logging();
-        // we are not setting the stream so it doens't exist later......
         this.streamModel = streamModel;
         this.streamTable = streamTable;
         this.interceptionRules = interceptionRules;
+        this.matchReplaceRules = matchReplaceRules;
     }
 
+    // Strange - this seems to also catch messages being sent
     @Override
     public TextMessageReceivedAction handleTextMessageReceived(InterceptedTextMessage interceptedTextMessage) {
 
@@ -53,19 +54,120 @@ class MyProxyWebSocketMessageHandler implements ProxyMessageHandler {
         }
 
         if (shouldInterceptMessage(this.interceptionRules, interceptedTextMessage)) {
+            // This is the in the API example but seems to break WSs :/
             //interceptedTextMessage.annotations().setHighlightColor(HighlightColor.RED);
             return TextMessageReceivedAction.intercept(interceptedTextMessage);
         }
 
-        /*if (interceptedTextMessage.payload().contains("username")) {
-            interceptedTextMessage.annotations().setHighlightColor(HighlightColor.RED);
+        if (shouldDropMessage(this.matchReplaceRules, new InterceptedMessageFacade(interceptedTextMessage))) {
+            return TextMessageReceivedAction.drop();
         }
 
-        if (interceptedTextMessage.direction() == CLIENT_TO_SERVER && interceptedTextMessage.payload().contains("password")) {
-            return TextMessageReceivedAction.intercept(interceptedTextMessage);
-        }
-        */
+        interceptedTextMessage = (InterceptedTextMessage) handleMatchAndReplace(
+                this.matchReplaceRules,
+                new InterceptedMessageFacade(interceptedTextMessage)
+        );
+
         return TextMessageReceivedAction.continueWith(interceptedTextMessage);
+    }
+
+    private boolean shouldDropMessage(
+            WebSocketMatchReplaceRulesTableModel matchReplaceRules,
+            InterceptedMessageFacade interceptedMessageFacade
+    ) {
+        for (int i = 0; i < matchReplaceRules.getRowCount(); i++) {
+            boolean enabled = (boolean) matchReplaceRules.getValueAt(i, 0); // ENABLED
+
+            if (!enabled) {
+                continue;
+            }
+
+            WebSocketMatchReplaceRulesTableModel.MatchType matchType =
+                    (WebSocketMatchReplaceRulesTableModel.MatchType) matchReplaceRules.getValueAt(i, 1);
+
+            WebSocketMatchReplaceRulesTableModel.Direction direction =
+                    (WebSocketMatchReplaceRulesTableModel.Direction) matchReplaceRules.getValueAt(i, 2);
+
+            String strMatch = (String) matchReplaceRules.getValueAt(i, 3);
+
+            if (matchType != WebSocketMatchReplaceRulesTableModel.MatchType.DROP) {
+                continue;
+            }
+
+            if (direction == WebSocketMatchReplaceRulesTableModel.Direction.CLIENT_TO_SERVER) {
+                if (!interceptedMessageFacade.direction().toString().equals("CLIENT_TO_SERVER")) continue;
+            }
+
+            if (direction == WebSocketMatchReplaceRulesTableModel.Direction.SERVER_TO_CLIENT) {
+                if (!interceptedMessageFacade.direction().toString().equals("SERVER_TO_CLIENT")) continue;
+            }
+
+            // Find / Match is in Hex
+            if (Utils.isHexString(strMatch)) {
+                return Utils.byteArrayContains(
+                        interceptedMessageFacade.binaryPayload(),
+                        Utils.hexStringToByteArray(strMatch)
+                );
+            // Otherwise normal string
+            } else {
+                return interceptedMessageFacade.stringPayload().contains(strMatch);
+            }
+        }
+        return false;
+    }
+
+    private Object handleMatchAndReplace(
+            WebSocketMatchReplaceRulesTableModel matchReplaceRules,
+            InterceptedMessageFacade interceptedMessageFacade
+    ) {
+        for (int i = 0; i < matchReplaceRules.getRowCount(); i++) {
+            boolean enabled = (boolean) matchReplaceRules.getValueAt(i, 0); // ENABLED
+
+            if (!enabled) {
+                continue;
+            }
+            WebSocketMatchReplaceRulesTableModel.MatchType matchType =
+                    (WebSocketMatchReplaceRulesTableModel.MatchType) matchReplaceRules.getValueAt(i, 1);
+
+            WebSocketMatchReplaceRulesTableModel.Direction direction =
+                    (WebSocketMatchReplaceRulesTableModel.Direction) matchReplaceRules.getValueAt(i, 2);
+
+            String strMatch = (String) matchReplaceRules.getValueAt(i, 3);
+
+            String strReplace = (String) matchReplaceRules.getValueAt(i, 4);
+
+            if (matchType != WebSocketMatchReplaceRulesTableModel.MatchType.REPLACE) {
+                // dropping messages needs to return a differnt function from the handler
+                // handle this separately inside handleTextMessageReceived + handleBinaryMessageReceived
+                continue;
+            }
+
+            if (direction == WebSocketMatchReplaceRulesTableModel.Direction.CLIENT_TO_SERVER) {
+                if (!interceptedMessageFacade.direction().toString().equals("CLIENT_TO_SERVER")) continue;
+            }
+
+            if (direction == WebSocketMatchReplaceRulesTableModel.Direction.SERVER_TO_CLIENT) {
+                if (!interceptedMessageFacade.direction().toString().equals("SERVER_TO_CLIENT")) continue;
+            }
+
+            // Are we match / replacing a hex pattern?
+            if (Utils.isHexString(strMatch)) {
+                byte[] bytesMatch = Utils.hexStringToByteArray(strMatch);
+                byte[] bytesReplace = Utils.isHexString(strReplace) ? Utils.hexStringToByteArray(strReplace) : strReplace.getBytes();
+                byte[] inputBytes = interceptedMessageFacade.binaryPayload();
+                byte[] modified = Utils.replace(inputBytes, bytesMatch, bytesReplace);
+                interceptedMessageFacade.setBytesPayload(modified);
+                return interceptedMessageFacade.getInterceptedMessage();
+            } else {        // it's a normal string or regex replacement
+                // Do the replacement and see if there is changes
+                String newStr = Utils.replace(interceptedMessageFacade.stringPayload(), strMatch, strReplace);
+                if (!newStr.equals(interceptedMessageFacade.stringPayload())) {
+                    interceptedMessageFacade.setStringPayload(newStr);
+                    return interceptedMessageFacade.getInterceptedMessage();
+                }
+            }
+        }
+        return interceptedMessageFacade.getInterceptedMessage();
     }
 
     private boolean shouldInterceptMessage(
