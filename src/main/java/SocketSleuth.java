@@ -202,12 +202,107 @@ public class SocketSleuth implements BurpExtension {
                 popupDialog.add(form.getContainer()); // add the formPanel to the popupDialog
                 popupDialog.setSize(410, 210);
                 popupDialog.setLocationRelativeTo(null);
+
+                EnumSet.allOf(WebSocketMatchReplaceRulesTableModel.MatchType.class).forEach(form.getMatchTypeCombo()::addItem);
+                EnumSet.allOf(WebSocketMatchReplaceRulesTableModel.Direction.class).forEach(form.getDirectionCombo()::addItem);
+
+                form.getOkButton().addActionListener(new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        // Get selections
+                        WebSocketMatchReplaceRulesTableModel.MatchType selectedMatchType =
+                                (WebSocketMatchReplaceRulesTableModel.MatchType) form.getMatchTypeCombo().getSelectedItem();
+
+                        WebSocketMatchReplaceRulesTableModel.Direction selectedDirection =
+                                (WebSocketMatchReplaceRulesTableModel.Direction) form.getDirectionCombo().getSelectedItem();
+
+                        String match = form.getMatchText().getText();
+                        String replace = form.getReplaceText().getText();
+
+                        // Create new row + add
+                        Object[] newRow = new Object[] {
+                                true, // enabled
+                                selectedMatchType,
+                                selectedDirection,
+                                match,
+                                replace
+                        };
+                        matchReplaceRulesTableModel.addRow(newRow);
+                        matchReplaceRulesTableModel.fireTableDataChanged();
+
+                        popupDialog.dispose();
+                    }
+                });
+
+                form.getCancelButton().addActionListener(new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        popupDialog.dispose();
+                    }
+                });
+
+                popupDialog.setVisible(true);
+            }
+        });
+
+        // Edit button for match replace
+        settingsUI.getEditMatchReplaceButton().addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Get row and current values
+                int selectedRowIndex = settingsUI.getMatchReplaceTable().getSelectedRow();
+
+                WebSocketMatchReplaceRulesTableModel.MatchType matchType
+                        = (WebSocketMatchReplaceRulesTableModel.MatchType) matchReplaceRulesTableModel.getValueAt(selectedRowIndex, 1);
+
+                WebSocketMatchReplaceRulesTableModel.Direction direction
+                        = (WebSocketMatchReplaceRulesTableModel.Direction) matchReplaceRulesTableModel.getValueAt(selectedRowIndex, 2);
+
+                String match = (String) matchReplaceRulesTableModel.getValueAt(selectedRowIndex, 3);
+                String replace = (String) matchReplaceRulesTableModel.getValueAt(selectedRowIndex, 4);
+
+                // Create form
+                MatchReplaceEditWindow form = new MatchReplaceEditWindow();
+                JDialog popupDialog = new JDialog();
+                popupDialog.add(form.getContainer()); // add the formPanel to the popupDialog
+                popupDialog.setSize(410, 210);
+                popupDialog.setLocationRelativeTo(null);
+
+                EnumSet.allOf(WebSocketMatchReplaceRulesTableModel.MatchType.class).forEach(form.getMatchTypeCombo()::addItem);
+                EnumSet.allOf(WebSocketMatchReplaceRulesTableModel.Direction.class).forEach(form.getDirectionCombo()::addItem);
+
+                // Assign values to form
+                form.getMatchTypeCombo().setSelectedItem(matchType);
+                form.getDirectionCombo().setSelectedItem(direction);
+                form.getMatchText().setText(match);
+                form.getReplaceText().setText(replace);
+
+                // setup button handlers
+                form.getCancelButton().addActionListener(new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        popupDialog.dispose();
+                    }
+                });
+
+                form.getOkButton().addActionListener(new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        // Maybe validate these first?
+                        matchReplaceRulesTableModel.setValueAt(form.getMatchTypeCombo().getSelectedItem(), selectedRowIndex, 1);
+                        matchReplaceRulesTableModel.setValueAt(form.getDirectionCombo().getSelectedItem(), selectedRowIndex, 2);
+                        matchReplaceRulesTableModel.setValueAt(form.getMatchText().getText(), selectedRowIndex, 3);
+                        matchReplaceRulesTableModel.setValueAt(form.getReplaceText().getText(), selectedRowIndex, 4);
+                        popupDialog.dispose();
+                    }
+                });
+
                 popupDialog.setVisible(true);
             }
         });
 
         // Remove button for match replace
-        /*settingsUI.getRemoveMatchReplaceButton().addActionListener(new ActionListener() {
+        settingsUI.getRemoveMatchReplaceButton().addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 int[] selectedRows = settingsUI.getMatchReplaceTable().getSelectedRows();
@@ -217,7 +312,7 @@ public class SocketSleuth implements BurpExtension {
                 }
                 matchReplaceRulesTableModel.fireTableDataChanged();
             }
-        });*/
+        });
 
         return settingsUI.getContainer();
     }

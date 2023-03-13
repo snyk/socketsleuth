@@ -18,6 +18,11 @@
             <artifactId>montoya-api</artifactId>
             <version>LATEST</version>
         </dependency>
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20220924</version>
+        </dependency>
     </dependencies>
 
 </project>
