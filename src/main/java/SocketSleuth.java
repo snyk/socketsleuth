@@ -2,11 +2,14 @@ import burp.api.montoya.BurpExtension;
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.core.ByteArray;
 import burp.api.montoya.ui.UserInterface;
-import burp.api.montoya.ui.editor.RawEditor;
+import burp.api.montoya.ui.editor.HttpRequestEditor;
+import burp.api.montoya.ui.editor.WebSocketMessageEditor;
 
 import javax.swing.*;
+import javax.swing.border.LineBorder;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+import javax.swing.plaf.PanelUI;
 import javax.swing.table.TableColumnModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -21,12 +24,15 @@ public class SocketSleuth implements BurpExtension {
 
     MontoyaApi api;
     SleuthUI uiForm;
+
+    CustomTabbedPanel repeaterUI;
     SettingsUI settingsUI;
     WebSocketConnectionTableModel tableModel;
 
     WebSocketInterceptionRulesTableModel interceptionRulesModel;
 
     WebSocketMatchReplaceRulesTableModel matchReplaceRulesTableModel;
+    WSIntruder intruderTab;
 
     @Override
     public void initialize(MontoyaApi api) {
@@ -353,11 +359,38 @@ public class SocketSleuth implements BurpExtension {
     private Component constructBurpUi() {
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("History", this.constructHistoryTab());
-        tabs.addTab("WS Intruder", new JPanel());
-        tabs.addTab("WS auto-repeater", new JPanel());
+        tabs.addTab("WS Intruder", this.constructIntruderTab());
+        tabs.addTab("WS auto-repeater", this.constructRepeaterTab());
         tabs.addTab("Settings", this.constructSettingsTab());
         return tabs;
     }
+
+    private Component constructIntruderTab() {
+        // test
+        //JPanel panel = new JPanel();
+        //JLabel jlabel = new JLabel("This is a label");
+        //panel.add(jlabel);
+
+        // normal
+        JTabbedPane intruderTabs = new JTabbedPane();
+
+        this.intruderTab = new WSIntruder();
+        WebSocketMessageEditor editor = api.userInterface().createWebSocketMessageEditor();
+        editor.setContents(ByteArray.byteArray("hello world".getBytes()));
+        this.intruderTab.getTestSplit().setResizeWeight(0.5);
+        this.intruderTab.getTestSplit().setDividerLocation(0.5);
+
+        this.intruderTab.getTestSplit().setLeftComponent(editor.uiComponent());
+
+        intruderTabs.addTab("Tab 1", this.intruderTab.getContainer());
+        return intruderTabs;
+    }
+
+    private Component constructRepeaterTab() {
+        this.repeaterUI = new CustomTabbedPanel(this.tableModel);
+        return this.repeaterUI;
+    }
+
     private Component constructHistoryTab() {
         /*JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
 
@@ -375,10 +408,14 @@ public class SocketSleuth implements BurpExtension {
         uiForm = new SleuthUI();
         JTable table = uiForm.getConnectionTable();
 
-        // Set response editor
+        // Set upgrade request component
         UserInterface ui = this.api.userInterface();
+        HttpRequestEditor upgradeRequestViewer = ui.createHttpRequestEditor(READ_ONLY);
+        uiForm.getSocketConnectionSplit().setRightComponent(upgradeRequestViewer.uiComponent());
+
         // Super annoying - ui.createWebSocketMessageEditor exists but isn't implemented. Use raw editor for now
-        RawEditor messageViewer = ui.createRawEditor(READ_ONLY);
+        //RawEditor messageViewer = ui.createRawEditor(READ_ONLY);
+        WebSocketMessageEditor messageViewer = ui.createWebSocketMessageEditor(READ_ONLY);
         uiForm.setStreamVIewSplitPane(messageViewer.uiComponent());
         messageViewer.setContents(ByteArray.byteArray("hello world"));
 
@@ -415,6 +452,9 @@ public class SocketSleuth implements BurpExtension {
                 WebsocketConnectionTableRow row = connectionTableModel.getConnection(selectedRowIndex);
                 uiForm.setSelectedSocketLabel(socketId, row.getUrl());
                 uiForm.getStreamTable().setModel(row.getStreamModel());
+
+                // Set upgrade request in right pane
+                upgradeRequestViewer.setRequest(row.getUpgradeRequest());
             }
         });
 

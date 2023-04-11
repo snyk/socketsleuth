@@ -53,7 +53,8 @@ class MyProxyWebSocketCreationHandler implements ProxyWebSocketCreationHandler {
                 webSocketCreation.upgradeRequest().httpService().port(),
                 true,
                 webSocketCreation.upgradeRequest().httpService().secure(),
-                ""
+                "",
+                webSocketCreation.upgradeRequest()
         ));
 
         this.connections.put(this.connections.size(), container);

@@ -1,3 +1,5 @@
+import burp.api.montoya.http.message.requests.HttpRequest;
+
 import java.time.LocalDateTime;
 
 public class WebsocketConnectionTableRow {
@@ -9,6 +11,8 @@ public class WebsocketConnectionTableRow {
     private boolean active;
     private String comment;
 
+    private HttpRequest upgradeRequest;
+
     private WebSocketStreamTableModel streamModel;
 
     public WebSocketStreamTableModel getStreamModel() {
@@ -19,15 +23,20 @@ public class WebsocketConnectionTableRow {
         this.streamModel = streamModel;
     }
 
-    public WebsocketConnectionTableRow(int socketId, String url, int listenerPort, boolean active, boolean tls, String comment) {
+    public WebsocketConnectionTableRow(int socketId, String url, int listenerPort, boolean active, boolean tls, String comment, HttpRequest upgradeRequest) {
         this.socketId = socketId;
         this.url = url;
         this.listenerPort = listenerPort;
         this.tls = tls;
         this.active = active;
         this.comment = comment;
+        this.upgradeRequest = upgradeRequest;
         this.streamModel = new WebSocketStreamTableModel();
         //this.streamModel.addStream(new WebSocketStream(socketId, "test", "fake", 4, LocalDateTime.now(), ""));
+    }
+
+    public HttpRequest getUpgradeRequest() {
+        return upgradeRequest;
     }
 
     public int getSocketId() {
