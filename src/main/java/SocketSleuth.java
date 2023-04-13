@@ -4,6 +4,8 @@ import burp.api.montoya.core.ByteArray;
 import burp.api.montoya.ui.UserInterface;
 import burp.api.montoya.ui.editor.HttpRequestEditor;
 import burp.api.montoya.ui.editor.WebSocketMessageEditor;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import javax.swing.*;
 import javax.swing.border.LineBorder;
@@ -12,17 +14,27 @@ import javax.swing.event.ListSelectionListener;
 import javax.swing.plaf.PanelUI;
 import javax.swing.table.TableColumnModel;
 import java.awt.*;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.stream.Collectors;
 
 import static burp.api.montoya.ui.editor.EditorOptions.READ_ONLY;
 
 public class SocketSleuth implements BurpExtension {
 
     MontoyaApi api;
+    JTabbedPane socketSleuthTabPanel;
     SleuthUI uiForm;
 
     CustomTabbedPanel repeaterUI;
@@ -32,7 +44,7 @@ public class SocketSleuth implements BurpExtension {
     WebSocketInterceptionRulesTableModel interceptionRulesModel;
 
     WebSocketMatchReplaceRulesTableModel matchReplaceRulesTableModel;
-    WSIntruder intruderTab;
+    SocketSleuthTabbedPanel<WSIntruder> intruderTab;
 
     @Override
     public void initialize(MontoyaApi api) {
@@ -44,7 +56,9 @@ public class SocketSleuth implements BurpExtension {
         this.matchReplaceRulesTableModel = new WebSocketMatchReplaceRulesTableModel();
 
         api.extension().setName("SocketSleuth");
-        api.userInterface().registerSuiteTab("SocketSleuth", constructBurpUi());
+        this.socketSleuthTabPanel = constructBurpUi();
+
+        api.userInterface().registerSuiteTab("SocketSleuth", this.socketSleuthTabPanel);
 
         // Create handler for new websocket connections
         // The table might not exist yet, check if there is bugs
@@ -329,6 +343,23 @@ public class SocketSleuth implements BurpExtension {
         JMenuItem commentItem = new JMenuItem("Add comment");
         JMenuItem clearItem = new JMenuItem("Clear history");
         JMenuItem intruderItem = new JMenuItem("Send to WS intruder");
+        intruderItem.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                api.logging().logToOutput("its been clicked");
+                WebSocketStreamTableModel tableModel = (WebSocketStreamTableModel) table.getModel();
+                int index = table.getSelectedRow();
+                if (index == -1) {
+                    return;
+                }
+
+                intruderTab.addNewTab(tableModel.getStream(index).getRawMessage());
+
+                // Go to WS intruder tab
+                socketSleuthTabPanel.setSelectedIndex(1);
+            }
+        });
+
         JMenuItem autoRepeaterItem = new JMenuItem("Send to WS auto-repeater");
 
         popupMenu.add(commentItem);
@@ -356,34 +387,15 @@ public class SocketSleuth implements BurpExtension {
         });
     }
 
-    private Component constructBurpUi() {
+    private JTabbedPane constructBurpUi() {
         JTabbedPane tabs = new JTabbedPane();
+        this.intruderTab = SocketSleuthTabbedPanel.create("Test tabs", WSIntruder.class, this.api);
+
         tabs.addTab("History", this.constructHistoryTab());
-        tabs.addTab("WS Intruder", this.constructIntruderTab());
+        tabs.addTab("WS Intruder", intruderTab);
         tabs.addTab("WS auto-repeater", this.constructRepeaterTab());
         tabs.addTab("Settings", this.constructSettingsTab());
         return tabs;
-    }
-
-    private Component constructIntruderTab() {
-        // test
-        //JPanel panel = new JPanel();
-        //JLabel jlabel = new JLabel("This is a label");
-        //panel.add(jlabel);
-
-        // normal
-        JTabbedPane intruderTabs = new JTabbedPane();
-
-        this.intruderTab = new WSIntruder();
-        WebSocketMessageEditor editor = api.userInterface().createWebSocketMessageEditor();
-        editor.setContents(ByteArray.byteArray("hello world".getBytes()));
-        this.intruderTab.getTestSplit().setResizeWeight(0.5);
-        this.intruderTab.getTestSplit().setDividerLocation(0.5);
-
-        this.intruderTab.getTestSplit().setLeftComponent(editor.uiComponent());
-
-        intruderTabs.addTab("Tab 1", this.intruderTab.getContainer());
-        return intruderTabs;
     }
 
     private Component constructRepeaterTab() {
