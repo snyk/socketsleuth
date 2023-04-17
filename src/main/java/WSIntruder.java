@@ -1,6 +1,8 @@
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.core.ByteArray;
+import burp.api.montoya.proxy.websocket.ProxyWebSocket;
 import burp.api.montoya.ui.editor.WebSocketMessageEditor;
+import burp.api.montoya.websocket.Direction;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -20,12 +22,18 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.Random;
 import java.util.stream.Collectors;
 
 public class WSIntruder implements ContainerProvider {
     private MontoyaApi api;
     private WebSocketMessageEditor messageEditor;
+    private JSONRPCResponseMonitor responseMonitor;
+    private WebSocketConnectionTableModel webSocketConnectionTableModel;
+
+    private ProxyWebSocket proxyWebSocket;
     private JPanel container;
+    private int tabId;
 
     @Override
     public void handleData(Object data) {
@@ -47,11 +55,20 @@ public class WSIntruder implements ContainerProvider {
 
     private JComboBox attackTypeCombo;
     private JPanel wsIntruderPanel;
+    private JButton selectWebSocketButton;
+    private JLabel selectedSocketLabel;
 
     private JPanel attackTypePanel;
 
     public JPanel getContainer() {
         return container;
+    }
+
+    @Override
+    // tabId is always incremented and is used to subscribe to detection events for the correct tab
+    // tab index can not be used as it could cause issues when tabs have been removed and new tabs added
+    public void setTabId(int tabId) {
+        this.tabId = tabId;
     }
 
     public JPanel getAttackTypePanel() {
@@ -62,9 +79,11 @@ public class WSIntruder implements ContainerProvider {
         return attackTypeCombo;
     }
 
-    public WSIntruder(MontoyaApi api) {
+    public WSIntruder(MontoyaApi api, WebSocketConnectionTableModel connectionTableModel, JSONRPCResponseMonitor responseMonitor) {
         this.api = api;
         this.messageEditor = api.userInterface().createWebSocketMessageEditor();
+        this.webSocketConnectionTableModel = connectionTableModel;
+        this.responseMonitor = responseMonitor;
 
         this.getAttackTypeCombo().setModel(new DefaultComboBoxModel<>(WSIntruderType.values()));
         this.getAttackTypeCombo().addActionListener(new ActionListener() {
@@ -88,7 +107,52 @@ public class WSIntruder implements ContainerProvider {
                 }
             }
         });
+
         this.setWsIntruderPanel(constructJSONRPCMethodPanel());
+
+
+        this.selectWebSocketButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JFrame popup = new JFrame("WebSocket Connection Manager");
+
+                WSConnectionManager connectionManager = new WSConnectionManager(connectionTableModel);
+                connectionManager.getCancelButton().addActionListener(new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        popup.dispose();
+                    }
+                });
+
+                connectionManager.getSelectButton().addActionListener(new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        api.logging().logToOutput("about to select");
+                        int selectedRow = connectionManager.getWsConnectionManagerTabel().getSelectedRow();
+                        api.logging().logToOutput("selected row:" + selectedRow);
+                        if (selectedRow != -1) {
+                            api.logging().logToOutput("socket ID:" + connectionTableModel.getConnection(selectedRow).getSocketId());
+                            boolean active = connectionTableModel.getConnection(selectedRow).isActive();
+                            api.logging().logToOutput("is active:" + active);
+                            if (!active) {
+                                return;
+                            }
+
+                            int webSocketId = connectionTableModel.getConnection(selectedRow).getSocketId();
+                            String webSocketUrl = connectionTableModel.getConnection(selectedRow).getUrl();
+                            selectedSocketLabel.setText("ID: " + webSocketId + " URL: " + webSocketUrl);
+                            proxyWebSocket = connectionTableModel.getConnection(selectedRow).getProxyWebSocket();
+                        }
+                        popup.dispose();
+                    }
+                });
+
+                popup.add(connectionManager.getContainer());
+                popup.pack();
+                popup.setLocationRelativeTo(null);
+                popup.setVisible(true);
+            }
+        });
     }
 
     private JPanel constructJSONRPCParamPanel() {
@@ -97,7 +161,7 @@ public class WSIntruder implements ContainerProvider {
 
     private JPanel constructJSONRPCMethodPanel() {
         Color lightGreen = new Color(0, 204, 102);
-        JSONRPCIntruder jsonrpcIntruder = new JSONRPCIntruder();
+        JSONRPCIntruder jsonrpcIntruder = new JSONRPCIntruder(api);
         jsonrpcIntruder.getPayloadContainer().add(this.messageEditor.uiComponent());
         jsonrpcIntruder.getPayloadContainer().revalidate();
         jsonrpcIntruder.getPayloadContainer().repaint();
@@ -108,6 +172,7 @@ public class WSIntruder implements ContainerProvider {
                 jsonrpcIntruder.attemptAutoDetectJSONRPC(messageEditor);
             }
         });
+
 
         jsonrpcIntruder.getAddButton().addActionListener(new ActionListener() {
             @Override
@@ -131,12 +196,70 @@ public class WSIntruder implements ContainerProvider {
         jsonrpcIntruder.getMethodWordlist().setModel(listModel);
         populateDefaultWordlist(jsonrpcIntruder.getMethodWordlist());
 
+        // Maybe change this to a custom impl of DefaultListModel and add an event handler...
+        updateItemCountTextField(listModel, jsonrpcIntruder.getWordlistCountLabel());
+
+        jsonrpcIntruder.getStartDiscoveryButton().addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                Random rand = new Random();
+                int minDelay = (int) jsonrpcIntruder.getMinDelaySpinner().getModel().getValue();
+                int maxDelay = (int) jsonrpcIntruder.getMaxDelaySpinner().getModel().getValue();
+
+                api.logging().logToOutput(
+                        "Starting JSONRPC method discovery with Min Delay: "
+                                + minDelay
+                                + " Max Delay: "
+                                + maxDelay
+                                + " and Wordlist Size: "
+                                + listModel.size()
+                );
+
+                Thread thread = new Thread(() -> {
+                    // TODO: Allow this to be specified in the UI
+                    int currentId = 10000;
+                    for (int i = 0; i < listModel.size(); i++) {
+                        // Do discovery
+                        String item = listModel.getElementAt(i);
+                        JSONObject jsonObject = new JSONObject();
+
+                        // Set the properties of the object
+                        jsonObject.put("jsonrpc", "2.0");
+                        jsonObject.put("id", currentId);
+                        jsonObject.put("method", item);
+                        jsonObject.put("params", JSONObject.NULL);
+
+                        // Add to response monitor
+                        responseMonitor.addRequest(item, null, Integer.toString(currentId));
+
+                        // Print the JSON object as a string
+                        api.logging().logToOutput(jsonObject.toString());
+                        proxyWebSocket.sendTextMessage(jsonObject.toString(), Direction.CLIENT_TO_SERVER);
+                        api.logging().logToOutput("Testing: " + item);
+                        currentId++;
+
+                        // Delay
+                        int delay = rand.nextInt(maxDelay - minDelay + 1) + minDelay;
+                        try {
+                            Thread.sleep(delay);
+                        } catch (InterruptedException ex) {
+                            ex.printStackTrace();
+                        }
+                    }
+                    api.logging().logToOutput("JSONRPC Method discovery request sending complete");
+                });
+
+                thread.start();
+            }
+        });
+
         jsonrpcIntruder.getRemoveButton().addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 int[] selectedIndices = jsonrpcIntruder.getMethodWordlist().getSelectedIndices();
                 for (int i = selectedIndices.length - 1; i >= 0; i--) {
                     listModel.remove(selectedIndices[i]);
+                    updateItemCountTextField(listModel, jsonrpcIntruder.getWordlistCountLabel());
                 }
             }
         });
@@ -151,6 +274,7 @@ public class WSIntruder implements ContainerProvider {
 
                 listModel.addElement(text);
                 jsonrpcIntruder.getWordlistManualText().setText("");
+                updateItemCountTextField(listModel, jsonrpcIntruder.getWordlistCountLabel());
             }
         });
 
@@ -158,6 +282,7 @@ public class WSIntruder implements ContainerProvider {
             @Override
             public void actionPerformed(ActionEvent e) {
                 listModel.removeAllElements();
+                updateItemCountTextField(listModel, jsonrpcIntruder.getWordlistCountLabel());
             }
         });
 
@@ -166,6 +291,7 @@ public class WSIntruder implements ContainerProvider {
             public void actionPerformed(ActionEvent e) {
                 listModel.clear(); // Clear the existing items from the listModel
                 populateDefaultWordlist(jsonrpcIntruder.getMethodWordlist());
+                updateItemCountTextField(listModel, jsonrpcIntruder.getWordlistCountLabel());
             }
         });
 
@@ -185,12 +311,17 @@ public class WSIntruder implements ContainerProvider {
                         throw new RuntimeException(ex);
                     }
                 }
+                updateItemCountTextField(listModel, jsonrpcIntruder.getWordlistCountLabel());
             }
         });
 
         jsonrpcIntruder.attemptAutoDetectJSONRPC(this.messageEditor);
-        api.logging().logToOutput("we tried to auto detect");
         return jsonrpcIntruder.getContainer();
+    }
+
+    private void updateItemCountTextField(DefaultListModel listModel, JLabel label) {
+        int itemCount = listModel.getSize();
+        label.setText("" + itemCount);
     }
 
     private void populateDefaultWordlist(JList<String> list) {
@@ -240,25 +371,41 @@ public class WSIntruder implements ContainerProvider {
      */
     private void $$$setupUI$$$() {
         container = new JPanel();
-        container.setLayout(new com.intellij.uiDesigner.core.GridLayoutManager(5, 3, new Insets(0, 0, 0, 0), -1, -1));
+        container.setLayout(new com.intellij.uiDesigner.core.GridLayoutManager(8, 5, new Insets(0, 0, 0, 0), -1, -1));
         container.setBorder(BorderFactory.createTitledBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20), null, TitledBorder.DEFAULT_JUSTIFICATION, TitledBorder.DEFAULT_POSITION, null, null));
         final JLabel label1 = new JLabel();
         Font label1Font = this.$$$getFont$$$(null, Font.BOLD, -1, label1.getFont());
         if (label1Font != null) label1.setFont(label1Font);
         label1.setText("Choose an attack type");
-        container.add(label1, new com.intellij.uiDesigner.core.GridConstraints(0, 0, 1, 3, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST, com.intellij.uiDesigner.core.GridConstraints.FILL_NONE, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        container.add(label1, new com.intellij.uiDesigner.core.GridConstraints(0, 0, 1, 5, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST, com.intellij.uiDesigner.core.GridConstraints.FILL_NONE, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         final JLabel label2 = new JLabel();
         label2.setText("Attack type:");
         container.add(label2, new com.intellij.uiDesigner.core.GridConstraints(2, 0, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST, com.intellij.uiDesigner.core.GridConstraints.FILL_NONE, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         final com.intellij.uiDesigner.core.Spacer spacer1 = new com.intellij.uiDesigner.core.Spacer();
-        container.add(spacer1, new com.intellij.uiDesigner.core.GridConstraints(1, 0, 1, 3, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_WANT_GROW, 1, new Dimension(1, 10), null, null, 0, false));
+        container.add(spacer1, new com.intellij.uiDesigner.core.GridConstraints(1, 0, 1, 5, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_WANT_GROW, 1, new Dimension(1, 5), null, null, 0, false));
         final com.intellij.uiDesigner.core.Spacer spacer2 = new com.intellij.uiDesigner.core.Spacer();
-        container.add(spacer2, new com.intellij.uiDesigner.core.GridConstraints(3, 0, 1, 3, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_WANT_GROW, 1, new Dimension(-1, 20), null, null, 0, false));
+        container.add(spacer2, new com.intellij.uiDesigner.core.GridConstraints(6, 0, 1, 5, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_WANT_GROW, 1, new Dimension(-1, 20), null, null, 0, false));
         attackTypeCombo = new JComboBox();
-        container.add(attackTypeCombo, new com.intellij.uiDesigner.core.GridConstraints(2, 1, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        container.add(attackTypeCombo, new com.intellij.uiDesigner.core.GridConstraints(2, 1, 1, 2, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         wsIntruderPanel = new JPanel();
         wsIntruderPanel.setLayout(new CardLayout(0, 0));
-        container.add(wsIntruderPanel, new com.intellij.uiDesigner.core.GridConstraints(4, 0, 1, 2, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_BOTH, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
+        container.add(wsIntruderPanel, new com.intellij.uiDesigner.core.GridConstraints(7, 0, 1, 3, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_BOTH, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
+        final JLabel label3 = new JLabel();
+        label3.setText("WebSocket:");
+        container.add(label3, new com.intellij.uiDesigner.core.GridConstraints(5, 0, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST, com.intellij.uiDesigner.core.GridConstraints.FILL_NONE, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        selectedSocketLabel = new JLabel();
+        selectedSocketLabel.setText("none selected");
+        container.add(selectedSocketLabel, new com.intellij.uiDesigner.core.GridConstraints(5, 1, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST, com.intellij.uiDesigner.core.GridConstraints.FILL_NONE, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        selectWebSocketButton = new JButton();
+        selectWebSocketButton.setText("Select WebSocket");
+        container.add(selectWebSocketButton, new com.intellij.uiDesigner.core.GridConstraints(5, 2, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        final JLabel label4 = new JLabel();
+        Font label4Font = this.$$$getFont$$$(null, Font.BOLD, -1, label4.getFont());
+        if (label4Font != null) label4.setFont(label4Font);
+        label4.setText("Select WebSocket");
+        container.add(label4, new com.intellij.uiDesigner.core.GridConstraints(4, 0, 1, 3, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST, com.intellij.uiDesigner.core.GridConstraints.FILL_NONE, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        final com.intellij.uiDesigner.core.Spacer spacer3 = new com.intellij.uiDesigner.core.Spacer();
+        container.add(spacer3, new com.intellij.uiDesigner.core.GridConstraints(3, 0, 1, 5, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_WANT_GROW, 1, new Dimension(-1, 5), null, null, 0, false));
     }
 
     /**

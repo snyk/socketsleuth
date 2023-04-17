@@ -18,6 +18,7 @@ class MyProxyWebSocketMessageHandler implements ProxyMessageHandler {
     WebSocketMatchReplaceRulesTableModel matchReplaceRules;
 
     SocketCloseCallback socketCloseCallback;
+    JSONRPCResponseMonitor responseMonitor;
 
     public MyProxyWebSocketMessageHandler(
             MontoyaApi api,
@@ -25,8 +26,8 @@ class MyProxyWebSocketMessageHandler implements ProxyMessageHandler {
             JTable streamTable,
             WebSocketInterceptionRulesTableModel interceptionRules,
             WebSocketMatchReplaceRulesTableModel matchReplaceRules,
-            SocketCloseCallback socketCloseCallback
-    ) {
+            SocketCloseCallback socketCloseCallback,
+            JSONRPCResponseMonitor responseMonitor) {
         this.api = api;
         this.logger = api.logging();
         this.streamModel = streamModel;
@@ -34,11 +35,14 @@ class MyProxyWebSocketMessageHandler implements ProxyMessageHandler {
         this.interceptionRules = interceptionRules;
         this.matchReplaceRules = matchReplaceRules;
         this.socketCloseCallback = socketCloseCallback;
+        this.responseMonitor = responseMonitor;
     }
 
     // Strange - this seems to also catch messages being sent
     @Override
     public TextMessageReceivedAction handleTextMessageReceived(InterceptedTextMessage interceptedTextMessage) {
+        // Handle message detections
+        this.responseMonitor.processResponse(interceptedTextMessage.payload());
 
         int selectedRowIndex = streamTable.getSelectedRow();
         ListSelectionModel selectionModel = streamTable.getSelectionModel();

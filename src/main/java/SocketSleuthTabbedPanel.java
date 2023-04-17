@@ -9,12 +9,14 @@ import java.util.function.Supplier;
 public class SocketSleuthTabbedPanel<T extends ContainerProvider> extends JPanel {
 
     private JTabbedPane tabbedPane;
+    private int createdTabs;
     private String panelName;
     private Supplier<T> componentSupplier;
 
     private SocketSleuthTabbedPanel(String name, Supplier<T> componentSupplier) {
         this.panelName = name;
         this.componentSupplier = componentSupplier;
+        this.createdTabs = 0;
 
         setLayout(new BorderLayout());
 
@@ -86,22 +88,26 @@ public class SocketSleuthTabbedPanel<T extends ContainerProvider> extends JPanel
         newTabContent.handleData(data);
         int newIndex = tabbedPane.getTabCount();
         String title = panelName + " " + (newIndex + 1);
+        newTabContent.setTabId(this.createdTabs);
         tabbedPane.addTab(title, newTabContent.getContainer());
         tabbedPane.setTabComponentAt(newIndex, createTabComponent(title));
         tabbedPane.setSelectedIndex(newIndex);
         tabbedPane.revalidate();
         tabbedPane.repaint();
+        createdTabs++;
     }
 
     private void addNewTab() {
         T newTabContent = componentSupplier.get();
         int newIndex = tabbedPane.getTabCount();
         String title = panelName + " " + (newIndex + 1);
+        newTabContent.setTabId(this.createdTabs);
         tabbedPane.addTab(title, newTabContent.getContainer());
         tabbedPane.setTabComponentAt(newIndex, createTabComponent(title));
         tabbedPane.setSelectedIndex(newIndex);
         tabbedPane.revalidate();
         tabbedPane.repaint();
+        createdTabs++;
     }
 
 

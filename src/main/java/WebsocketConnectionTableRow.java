@@ -1,6 +1,5 @@
 import burp.api.montoya.http.message.requests.HttpRequest;
-
-import java.time.LocalDateTime;
+import burp.api.montoya.proxy.websocket.ProxyWebSocket;
 
 public class WebsocketConnectionTableRow {
 
@@ -13,6 +12,10 @@ public class WebsocketConnectionTableRow {
 
     private HttpRequest upgradeRequest;
 
+    // This may need to be a different type of websocket to support manually created...
+    // handle later
+    private ProxyWebSocket proxyWebSocket;
+
     private WebSocketStreamTableModel streamModel;
 
     public WebSocketStreamTableModel getStreamModel() {
@@ -23,7 +26,7 @@ public class WebsocketConnectionTableRow {
         this.streamModel = streamModel;
     }
 
-    public WebsocketConnectionTableRow(int socketId, String url, int listenerPort, boolean active, boolean tls, String comment, HttpRequest upgradeRequest) {
+    public WebsocketConnectionTableRow(int socketId, String url, int listenerPort, boolean active, boolean tls, String comment, HttpRequest upgradeRequest, ProxyWebSocket proxyWebSocket) {
         this.socketId = socketId;
         this.url = url;
         this.listenerPort = listenerPort;
@@ -32,6 +35,7 @@ public class WebsocketConnectionTableRow {
         this.comment = comment;
         this.upgradeRequest = upgradeRequest;
         this.streamModel = new WebSocketStreamTableModel();
+        this.proxyWebSocket = proxyWebSocket;
         //this.streamModel.addStream(new WebSocketStream(socketId, "test", "fake", 4, LocalDateTime.now(), ""));
     }
 
@@ -73,6 +77,10 @@ public class WebsocketConnectionTableRow {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public ProxyWebSocket getProxyWebSocket() {
+        return proxyWebSocket;
     }
 
     public void setTls(boolean tls) {

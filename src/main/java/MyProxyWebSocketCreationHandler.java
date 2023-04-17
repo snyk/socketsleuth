@@ -17,6 +17,7 @@ class MyProxyWebSocketCreationHandler implements ProxyWebSocketCreationHandler {
     JTable streamTable;
     WebSocketInterceptionRulesTableModel interceptionRules;
     WebSocketMatchReplaceRulesTableModel matchReplaceRules;
+    JSONRPCResponseMonitor responseMonitor;
 
     public MyProxyWebSocketCreationHandler(
             MontoyaApi api,
@@ -24,7 +25,8 @@ class MyProxyWebSocketCreationHandler implements ProxyWebSocketCreationHandler {
             JTable connectionTable,
             JTable streamTable,
             WebSocketInterceptionRulesTableModel interceptionRules,
-            WebSocketMatchReplaceRulesTableModel matchReplaceRules) {
+            WebSocketMatchReplaceRulesTableModel matchReplaceRules,
+            JSONRPCResponseMonitor responseMonitor) {
         this.api = api;
         this.logger = api.logging();
         this.connections = new HashMap<>();
@@ -33,6 +35,7 @@ class MyProxyWebSocketCreationHandler implements ProxyWebSocketCreationHandler {
         this.streamTable = streamTable;
         this.interceptionRules = interceptionRules;
         this.matchReplaceRules = matchReplaceRules;
+        this.responseMonitor = responseMonitor;
     }
 
     @Override
@@ -54,7 +57,8 @@ class MyProxyWebSocketCreationHandler implements ProxyWebSocketCreationHandler {
                 true,
                 webSocketCreation.upgradeRequest().httpService().secure(),
                 "",
-                webSocketCreation.upgradeRequest()
+                webSocketCreation.upgradeRequest(),
+                webSocketCreation.proxyWebSocket()
         ));
 
         this.connections.put(this.connections.size(), container);
@@ -84,11 +88,9 @@ class MyProxyWebSocketCreationHandler implements ProxyWebSocketCreationHandler {
                                 container.getTableRow().setActive(false);
                                 tableModel.fireTableDataChanged();
                             }
-                        }
+                        },
+                        this.responseMonitor
                 )
         );
-        logger.logToOutput("Total sockets: " + this.connections.size());
-        logger.logToOutput("lets try to make a new one");
-        // Lets make a new socket request because why not
     }
 }

@@ -34,6 +34,7 @@ import static burp.api.montoya.ui.editor.EditorOptions.READ_ONLY;
 public class SocketSleuth implements BurpExtension {
 
     MontoyaApi api;
+    JSONRPCResponseMonitor responseMonitor;
     JTabbedPane socketSleuthTabPanel;
     SleuthUI uiForm;
 
@@ -54,6 +55,7 @@ public class SocketSleuth implements BurpExtension {
         this.tableModel = new WebSocketConnectionTableModel();
         this.interceptionRulesModel = new WebSocketInterceptionRulesTableModel();
         this.matchReplaceRulesTableModel = new WebSocketMatchReplaceRulesTableModel();
+        this.responseMonitor = new JSONRPCResponseMonitor(api);
 
         api.extension().setName("SocketSleuth");
         this.socketSleuthTabPanel = constructBurpUi();
@@ -67,7 +69,8 @@ public class SocketSleuth implements BurpExtension {
                 this.uiForm.getConnectionTable(),
                 this.uiForm.getStreamTable(),
                 this.interceptionRulesModel,
-                this.matchReplaceRulesTableModel
+                this.matchReplaceRulesTableModel,
+                this.responseMonitor
         );
         api.proxy().registerWebSocketCreationHandler(exampleWebSocketCreationHandler);
     }
@@ -389,7 +392,7 @@ public class SocketSleuth implements BurpExtension {
 
     private JTabbedPane constructBurpUi() {
         JTabbedPane tabs = new JTabbedPane();
-        this.intruderTab = SocketSleuthTabbedPanel.create("Test tabs", WSIntruder.class, this.api);
+        this.intruderTab = SocketSleuthTabbedPanel.create("Test tabs", WSIntruder.class, this.api, this.tableModel, this.responseMonitor);
 
         tabs.addTab("History", this.constructHistoryTab());
         tabs.addTab("WS Intruder", intruderTab);
@@ -491,12 +494,9 @@ public class SocketSleuth implements BurpExtension {
 
 
                 int messageId = (int) messageTable.getValueAt(selectedRowIndex, 0);
-                api.logging().logToOutput("nessage id " + messageId);
                 WebSocketStreamTableModel messageTableModel = (WebSocketStreamTableModel) messageTable.getModel();
                 messageViewer.setContents(ByteArray.byteArray(messageTableModel.getStream(selectedRowIndex).getRawMessage()));
                 //messageViewer.setContents(ByteArray.byteArray("ffs + " + messageId));
-                api.logging().logToOutput("hmmmmm");
-
             }
         });
 
