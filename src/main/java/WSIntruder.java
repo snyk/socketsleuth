@@ -64,13 +64,6 @@ public class WSIntruder implements ContainerProvider {
         return container;
     }
 
-    @Override
-    // tabId is always incremented and is used to subscribe to detection events for the correct tab
-    // tab index can not be used as it could cause issues when tabs have been removed and new tabs added
-    public void setTabId(int tabId) {
-        this.tabId = tabId;
-    }
-
     public JPanel getAttackTypePanel() {
         return attackTypePanel;
     }
@@ -79,11 +72,15 @@ public class WSIntruder implements ContainerProvider {
         return attackTypeCombo;
     }
 
-    public WSIntruder(MontoyaApi api, WebSocketConnectionTableModel connectionTableModel, JSONRPCResponseMonitor responseMonitor) {
+    // tabId is always incremented and is used to subscribe to detection events for the correct tab
+    // tab index can not be used as it could cause issues when tabs have been removed and new tabs added
+    public WSIntruder(int tabId, MontoyaApi api, WebSocketConnectionTableModel connectionTableModel, JSONRPCResponseMonitor responseMonitor) {
+        this.tabId = tabId;
         this.api = api;
         this.messageEditor = api.userInterface().createWebSocketMessageEditor();
         this.webSocketConnectionTableModel = connectionTableModel;
         this.responseMonitor = responseMonitor;
+        this.selectedSocketLabel.setText("tab id: " + this.tabId);
 
         this.getAttackTypeCombo().setModel(new DefaultComboBoxModel<>(WSIntruderType.values()));
         this.getAttackTypeCombo().addActionListener(new ActionListener() {
@@ -230,7 +227,7 @@ public class WSIntruder implements ContainerProvider {
                         jsonObject.put("params", JSONObject.NULL);
 
                         // Add to response monitor
-                        responseMonitor.addRequest(item, null, Integer.toString(currentId));
+                        responseMonitor.addRequest(tabId, jsonObject);
 
                         // Print the JSON object as a string
                         api.logging().logToOutput(jsonObject.toString());
@@ -314,6 +311,9 @@ public class WSIntruder implements ContainerProvider {
                 updateItemCountTextField(listModel, jsonrpcIntruder.getWordlistCountLabel());
             }
         });
+
+        // Bind event listener to jsonrpc results
+        this.responseMonitor.addMethodDetectedListener(this.tabId, jsonrpcIntruder);
 
         jsonrpcIntruder.attemptAutoDetectJSONRPC(this.messageEditor);
         return jsonrpcIntruder.getContainer();

@@ -4,6 +4,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 public class SocketSleuthTabbedPanel<T extends ContainerProvider> extends JPanel {
@@ -41,6 +42,10 @@ public class SocketSleuthTabbedPanel<T extends ContainerProvider> extends JPanel
         add(buttonPanel, BorderLayout.NORTH);
     }
 
+    public int getCreatedTabs() {
+        return createdTabs;
+    }
+
     public static <T extends ContainerProvider> SocketSleuthTabbedPanel<T> create(String name, Class<T> componentClass, Object... constructorArgs) {
         try {
             Constructor<?>[] constructors = componentClass.getConstructors();
@@ -50,12 +55,17 @@ public class SocketSleuthTabbedPanel<T extends ContainerProvider> extends JPanel
             for (Constructor<?> constructor : constructors) {
                 Class<?>[] parameterTypes = constructor.getParameterTypes();
 
-                if (parameterTypes.length != constructorArgs.length) {
+                if (parameterTypes.length != constructorArgs.length + 1) { // Add 1 to account for the additional int argument
                     continue;
                 }
 
-                for (int i = 0; i < parameterTypes.length; i++) {
-                    if (!parameterTypes[i].isAssignableFrom(constructorArgs[i].getClass())) {
+                // Check if the first parameter is an int
+                if (!parameterTypes[0].isAssignableFrom(Integer.TYPE)) {
+                    continue;
+                }
+
+                for (int i = 1; i < parameterTypes.length; i++) { // Start from index 1, as index 0 is the additional int argument
+                    if (!parameterTypes[i].isAssignableFrom(constructorArgs[i - 1].getClass())) {
                         continue outerLoop;
                     }
                 }
@@ -70,13 +80,21 @@ public class SocketSleuthTabbedPanel<T extends ContainerProvider> extends JPanel
             }
 
             Constructor<T> finalConstructorToUse = constructorToUse;
-            return new SocketSleuthTabbedPanel<>(name, () -> {
+            AtomicReference<SocketSleuthTabbedPanel<T>> tabbedPanelRef = new AtomicReference<>();
+            SocketSleuthTabbedPanel<T> tabbedPanel = new SocketSleuthTabbedPanel<>(name, () -> {
                 try {
-                    return finalConstructorToUse.newInstance(constructorArgs);
+                    Object[] combinedArgs = new Object[constructorArgs.length + 1];
+                    combinedArgs[0] = tabbedPanelRef.get().getCreatedTabs() + 1;
+                    System.arraycopy(constructorArgs, 0, combinedArgs, 1, constructorArgs.length);
+
+                    return finalConstructorToUse.newInstance(combinedArgs);
                 } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
                     throw new RuntimeException("Cannot create an instance of " + componentClass.getName(), e);
                 }
             });
+
+            tabbedPanelRef.set(tabbedPanel);
+            return tabbedPanel;
         } catch (SecurityException e) {
             throw new RuntimeException("Cannot create an instance of " + componentClass.getName(), e);
         }
@@ -88,7 +106,6 @@ public class SocketSleuthTabbedPanel<T extends ContainerProvider> extends JPanel
         newTabContent.handleData(data);
         int newIndex = tabbedPane.getTabCount();
         String title = panelName + " " + (newIndex + 1);
-        newTabContent.setTabId(this.createdTabs);
         tabbedPane.addTab(title, newTabContent.getContainer());
         tabbedPane.setTabComponentAt(newIndex, createTabComponent(title));
         tabbedPane.setSelectedIndex(newIndex);
@@ -101,7 +118,6 @@ public class SocketSleuthTabbedPanel<T extends ContainerProvider> extends JPanel
         T newTabContent = componentSupplier.get();
         int newIndex = tabbedPane.getTabCount();
         String title = panelName + " " + (newIndex + 1);
-        newTabContent.setTabId(this.createdTabs);
         tabbedPane.addTab(title, newTabContent.getContainer());
         tabbedPane.setTabComponentAt(newIndex, createTabComponent(title));
         tabbedPane.setSelectedIndex(newIndex);

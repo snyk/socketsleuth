@@ -12,7 +12,7 @@ import javax.swing.text.StyleContext;
 import java.awt.*;
 import java.util.Locale;
 
-public class JSONRPCIntruder {
+public class JSONRPCIntruder implements MethodDetectedListener {
     private MontoyaApi api;
     private JPanel container;
     private JPanel payloadContainer;
@@ -33,6 +33,8 @@ public class JSONRPCIntruder {
     private JLabel wordlistCountLabel;
     private JSpinner minDelaySpinner;
     private JSpinner maxDelaySpinner;
+    private WSIntruderResultView resultView;
+    private WSIntruderMessageView messageView;
 
     public JSpinner getMinDelaySpinner() {
         return minDelaySpinner;
@@ -133,8 +135,10 @@ public class JSONRPCIntruder {
             }
         });
 
-        this.resultTabbedPane.addTab("Results", new WSIntruderResultView(api).getContainer());
-        this.resultTabbedPane.addTab("All messages", new WSIntruderMessageView(api).getContainer());
+        this.resultView = new WSIntruderResultView(api);
+        this.messageView = new WSIntruderMessageView(api);
+        this.resultTabbedPane.addTab("Results", this.resultView.getContainer());
+        this.resultTabbedPane.addTab("All messages", this.messageView.getContainer());
     }
 
     {
@@ -284,6 +288,13 @@ public class JSONRPCIntruder {
      */
     public JComponent $$$getRootComponent$$$() {
         return container;
+    }
+
+    public void onMethodDetected(MethodDetectedEvent event) {
+        api.logging().logToOutput("EVENT TRIGGERD123 in jsonrpcintruder: " + event.getMethodName());
+        DefaultListModel<JSONRPCMethodItem> listModel = (DefaultListModel<JSONRPCMethodItem>) this.resultView.getDiscoveredList().getModel();
+
+        listModel.addElement(new JSONRPCMethodItem(event.getMethodName(), event.getRequest().getRequest().toString(), event.getResponse()));
     }
 
     public void attemptAutoDetectJSONRPC(WebSocketMessageEditor messageEditor) {

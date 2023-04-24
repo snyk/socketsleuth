@@ -1,9 +1,12 @@
 import burp.api.montoya.MontoyaApi;
+import burp.api.montoya.core.ByteArray;
 import burp.api.montoya.ui.editor.EditorOptions;
 import burp.api.montoya.ui.editor.WebSocketMessageEditor;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import java.awt.*;
 
 public class WSIntruderResultView {
@@ -13,12 +16,32 @@ public class WSIntruderResultView {
     private JPanel requestEditorPanel;
     private JPanel responseEditorPanel;
     private WebSocketMessageEditor messageEditor;
+    private WebSocketMessageEditor responseEditor;
 
     public WSIntruderResultView(MontoyaApi api) {
         this.messageEditor = api.userInterface().createWebSocketMessageEditor(EditorOptions.READ_ONLY);
+        this.responseEditor = api.userInterface().createWebSocketMessageEditor(EditorOptions.READ_ONLY);
         // this.resultSplit.setRightComponent(this.messageEditor.uiComponent());
         requestEditorPanel.add(this.messageEditor.uiComponent());
-        responseEditorPanel.add(api.userInterface().createWebSocketMessageEditor(EditorOptions.READ_ONLY).uiComponent());
+        responseEditorPanel.add(this.responseEditor.uiComponent());
+        discoveredList.setModel(new DefaultListModel<JSONRPCMethodItem>());
+
+        discoveredList.addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent e) {
+                if (!e.getValueIsAdjusting()) {
+                    JSONRPCMethodItem selectedItem = (JSONRPCMethodItem) discoveredList.getSelectedValue();
+                    if (selectedItem != null) {
+                        messageEditor.setContents(ByteArray.byteArray(selectedItem.getRequest()));
+                        responseEditor.setContents(ByteArray.byteArray(selectedItem.getResponse()));
+                    } else {
+                        // Clear the requestTextArea and responseTextArea if no item is selected
+                        messageEditor.setContents(ByteArray.byteArray(""));
+                        responseEditor.setContents(ByteArray.byteArray(""));
+                    }
+                }
+            }
+        });
     }
 
     public JPanel getContainer() {
