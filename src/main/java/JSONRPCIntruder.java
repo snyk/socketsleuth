@@ -1,6 +1,7 @@
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.core.ByteArray;
 import burp.api.montoya.ui.editor.WebSocketMessageEditor;
+import burp.api.montoya.websocket.Direction;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -12,7 +13,7 @@ import javax.swing.text.StyleContext;
 import java.awt.*;
 import java.util.Locale;
 
-public class JSONRPCIntruder implements MethodDetectedListener {
+public class JSONRPCIntruder implements MethodDetectedListener, ResponseReceivedListener {
     private MontoyaApi api;
     private JPanel container;
     private JPanel payloadContainer;
@@ -291,10 +292,15 @@ public class JSONRPCIntruder implements MethodDetectedListener {
     }
 
     public void onMethodDetected(MethodDetectedEvent event) {
-        api.logging().logToOutput("EVENT TRIGGERD123 in jsonrpcintruder: " + event.getMethodName());
-        DefaultListModel<JSONRPCMethodItem> listModel = (DefaultListModel<JSONRPCMethodItem>) this.resultView.getDiscoveredList().getModel();
+        api.logging().logToOutput("Method discovered: " + event.getMethodName());
 
+        // Handle positive results display
+        DefaultListModel<JSONRPCMethodItem> listModel = (DefaultListModel<JSONRPCMethodItem>) this.resultView.getDiscoveredList().getModel();
         listModel.addElement(new JSONRPCMethodItem(event.getMethodName(), event.getRequest().getRequest().toString(), event.getResponse()));
+    }
+
+    public void onResponseReceived(MessageEvent event) {
+        this.messageView.getTableModel().addMessage(event.getMessage(), event.getDirection());
     }
 
     public void attemptAutoDetectJSONRPC(WebSocketMessageEditor messageEditor) {

@@ -314,6 +314,7 @@ public class WSIntruder implements ContainerProvider {
 
         // Bind event listener to jsonrpc results
         this.responseMonitor.addMethodDetectedListener(this.tabId, jsonrpcIntruder);
+        this.responseMonitor.addResponseReceivedListener(this.tabId, jsonrpcIntruder);
 
         jsonrpcIntruder.attemptAutoDetectJSONRPC(this.messageEditor);
         return jsonrpcIntruder.getContainer();

@@ -1,8 +1,12 @@
 import burp.api.montoya.MontoyaApi;
+import burp.api.montoya.core.ByteArray;
 import burp.api.montoya.ui.editor.EditorOptions;
 import burp.api.montoya.ui.editor.WebSocketMessageEditor;
 
 import javax.swing.*;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 
 public class WSIntruderMessageView {
@@ -13,10 +17,33 @@ public class WSIntruderMessageView {
 
     private WebSocketMessageEditor messageEditor;
 
+    private JSONRPCMessageTableModel tableModel;
+
     public WSIntruderMessageView(MontoyaApi api) {
         this.messageEditor = api.userInterface().createWebSocketMessageEditor(EditorOptions.READ_ONLY);
         this.api = api;
         this.resultSplitPane.setRightComponent(this.messageEditor.uiComponent());
+
+        this.tableModel = new JSONRPCMessageTableModel();
+        messageTable.setModel(this.tableModel);
+
+        this.messageTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent e) {
+                if (!e.getValueIsAdjusting()) {
+                    int selectedRow = messageTable.getSelectedRow();
+                    if (selectedRow != -1) {
+                        JSONRPCMessageTableModel model = (JSONRPCMessageTableModel) messageTable.getModel();
+                        JSONRPCMessage message = model.getMessage(selectedRow);
+                        messageEditor.setContents(ByteArray.byteArray(message.getMessage()));
+                    }
+                }
+            }
+        });
+    }
+
+    public JSONRPCMessageTableModel getTableModel() {
+        return tableModel;
     }
 
     public JPanel getContainer() {

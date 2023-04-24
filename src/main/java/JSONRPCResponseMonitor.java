@@ -1,4 +1,5 @@
 import burp.api.montoya.MontoyaApi;
+import burp.api.montoya.websocket.Direction;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
@@ -65,6 +66,24 @@ class JSONRPCRequest {
     }
 }
 
+class MessageEvent extends EventObject {
+    private String message;
+    private Direction direction;
+
+    public MessageEvent(Object source, String message, Direction direction) {
+        super(source);
+        this.message = message;
+        this.direction = direction;
+    }
+
+    public Direction getDirection() {
+        return direction;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+}
 class MethodDetectedEvent extends EventObject {
     private JSONRPCRequest request;
     private String response;
@@ -88,6 +107,14 @@ class MethodDetectedEvent extends EventObject {
     }
 }
 
+interface MessageSentListener extends EventListener {
+    void onMessageSent(MessageEvent event);
+}
+
+interface ResponseReceivedListener extends EventListener {
+    void onResponseReceived(MessageEvent event);
+}
+
 interface MethodDetectedListener extends EventListener {
     void onMethodDetected(MethodDetectedEvent event);
 }
@@ -95,38 +122,38 @@ interface MethodDetectedListener extends EventListener {
 public class JSONRPCResponseMonitor {
     private MontoyaApi api;
     private ConcurrentHashMap<String, JSONRPCRequest> pendingRequests;
-    private ConcurrentHashMap<Integer, List<MethodDetectedListener>> listenersByTabId;
+    private ConcurrentHashMap<Integer, List<MethodDetectedListener>> methodDetectedListenersByTabId;
+    private ConcurrentHashMap<Integer, List<ResponseReceivedListener>> responseReceivedListenersByTabId;
+    private ConcurrentHashMap<Integer, List<MessageSentListener>> onMessageSentListenersByTabId;
 
     public JSONRPCResponseMonitor(MontoyaApi api) {
         this.api = api;
         this.pendingRequests = new ConcurrentHashMap<>();
-        this.listenersByTabId = new ConcurrentHashMap<>();
+        this.methodDetectedListenersByTabId = new ConcurrentHashMap<>();
+        this.responseReceivedListenersByTabId = new ConcurrentHashMap<>();
+        this.onMessageSentListenersByTabId = new ConcurrentHashMap<>();
     }
 
     public void addRequest(int intruderTabId, JSONObject jsonRequest) {
         JSONRPCRequest request = null;
         try {
-            api.logging().logToOutput("lets go:");
-            api.logging().logToOutput("is json: " + JsonRpcUtils.isJsonRpcMessage(jsonRequest.toString()));
-            api.logging().logToOutput(jsonRequest.toString());
             request = new JSONRPCRequest(intruderTabId, jsonRequest);
-            api.logging().logToOutput("we managed to create! " + request.getMethodName() + " with id: " + request.getMessageId());
-
             pendingRequests.put(request.getMessageId(), request);
+
+            // Note: this is a bit hacky - we hijack the responseReceivedEvent even though this is the message
+            // this is okay for now as the only listener is used to add sent / received messages to the table
+            // TODO: make the event listeners explicit incase different actions are needed
+            fireResponseReceivedEvent(request.getIntruderTabId(), request.getRequest().toString(), Direction.CLIENT_TO_SERVER);
         } catch (Exception e) {
             api.logging().logToError("Invalid JSON Request provided to JSONRPC Response Monitor.");
-            api.logging().logToOutput(e.getMessage());
             throw new RuntimeException(e);
         }
     }
 
     public void processResponse(String message) {
-        api.logging().logToOutput("message recieved");
         if (!JsonRpcUtils.isValidJSONRPCResponse(message)) {
             return;
         }
-
-        api.logging().logToOutput("valid json recieved");
 
         try {
             JSONObject jsonObject = new JSONObject(message);
@@ -142,16 +169,14 @@ public class JSONRPCResponseMonitor {
                 throw new RuntimeException("Unexpected type for 'id' field");
             }
 
-            api.logging().logToOutput("checking if its intruder resp");
-            api.logging().logToOutput("id: " + id);
             // Check if it's a response to a detection message
             if (pendingRequests.containsKey(id)) {
-                api.logging().logToOutput("its a intruder resp");
                 JSONRPCRequest request = pendingRequests.remove(id);
+                fireResponseReceivedEvent(request.getIntruderTabId(), message, Direction.SERVER_TO_CLIENT);
 
                 if (JsonRpcUtils.isMethodDetected(message)) {
                     api.logging().logToOutput("METHOD DETECTED: " + request.getMethodName());
-                    fireEvent(request, message);
+                    fireMethodDetectedEvent(request, message);
                 }
             }
         } catch (Exception ex) {
@@ -160,22 +185,36 @@ public class JSONRPCResponseMonitor {
     }
 
     public void addMethodDetectedListener(int intruderTabId, MethodDetectedListener listener) {
-        listenersByTabId.computeIfAbsent(intruderTabId, k -> new ArrayList<>()).add(listener);
+        methodDetectedListenersByTabId.computeIfAbsent(intruderTabId, k -> new ArrayList<>()).add(listener);
+    }
+
+    public void addResponseReceivedListener(int intruderTabId, ResponseReceivedListener listener) {
+        responseReceivedListenersByTabId.computeIfAbsent(intruderTabId, k -> new ArrayList<>()).add(listener);
     }
 
     public void removeMethodDetectedListener(int intruderTabId, MethodDetectedListener listener) {
-        List<MethodDetectedListener> listeners = listenersByTabId.get(intruderTabId);
+        List<MethodDetectedListener> listeners = methodDetectedListenersByTabId.get(intruderTabId);
         if (listeners != null) {
             listeners.remove(listener);
         }
     }
 
-    private void fireEvent(JSONRPCRequest request, String response) {
-        List<MethodDetectedListener> listeners = listenersByTabId.get(request.getIntruderTabId());
+    private void fireMethodDetectedEvent(JSONRPCRequest request, String response) {
+        List<MethodDetectedListener> listeners = methodDetectedListenersByTabId.get(request.getIntruderTabId());
         if (listeners != null) {
             MethodDetectedEvent event = new MethodDetectedEvent(this, request, response);
             for (MethodDetectedListener listener : listeners) {
                 listener.onMethodDetected(event);
+            }
+        }
+    }
+
+    private void fireResponseReceivedEvent(int tabId, String response, Direction direction) {
+        List<ResponseReceivedListener> listeners = responseReceivedListenersByTabId.get(tabId);
+        if (listeners != null) {
+            MessageEvent event = new MessageEvent(this, response, direction);
+            for (ResponseReceivedListener listener : listeners) {
+                listener.onResponseReceived(event);
             }
         }
     }
