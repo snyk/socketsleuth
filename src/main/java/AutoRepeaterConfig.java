@@ -7,12 +7,15 @@ public class AutoRepeaterConfig {
     private int tabId;
     private boolean isActive;
 
-    public AutoRepeaterConfig(int sourceSocketId, int targetSocketId, Direction direction, int tabId) {
+    private WebSocketAutoRepeaterStreamTableModel streamTableModel;
+
+    public AutoRepeaterConfig(int sourceSocketId, int targetSocketId, Direction direction, int tabId, WebSocketAutoRepeaterStreamTableModel streamTableModel) {
         this.sourceSocketId = sourceSocketId;
         this.targetSocketId = targetSocketId;
         this.direction = direction;
         this.tabId = tabId;
         this.isActive = false;
+        this.streamTableModel = streamTableModel;
     }
 
     public int getSourceSocketId() {
@@ -53,5 +56,9 @@ public class AutoRepeaterConfig {
 
     public void setActive(boolean active) {
         isActive = active;
+    }
+
+    public WebSocketAutoRepeaterStreamTableModel getStreamTableModel() {
+        return streamTableModel;
     }
 }

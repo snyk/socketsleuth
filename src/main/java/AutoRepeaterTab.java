@@ -1,10 +1,13 @@
 import burp.api.montoya.MontoyaApi;
+import burp.api.montoya.core.ByteArray;
 import burp.api.montoya.ui.editor.EditorOptions;
 import burp.api.montoya.ui.editor.WebSocketMessageEditor;
 import burp.api.montoya.websocket.Direction;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import javax.swing.plaf.FontUIResource;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableModel;
@@ -36,6 +39,7 @@ public class AutoRepeaterTab implements ContainerProvider {
 
     AutoRepeaterTableModel tableModel;
     WebSocketAutoRepeater webSocketAutoRepeater;
+    WebSocketAutoRepeaterStreamTableModel autoRepeaterStreamTableModel;
     int tabId;
 
     public AutoRepeaterTab(int tabID, MontoyaApi api, TableModel tableModel, WebSocketAutoRepeater webSocketAutoRepeater) {
@@ -53,15 +57,30 @@ public class AutoRepeaterTab implements ContainerProvider {
         // Build tabs
         // Tab -> SplitPane: Left (AutoRepeaterMessageTable) Right (MessageEditor)
         JSplitPane originalSocketSplit = new JSplitPane();
+        this.autoRepeaterStreamTableModel = new WebSocketAutoRepeaterStreamTableModel();
         AutoRepeaterMessageTable messageTable = new AutoRepeaterMessageTable();
-        //messageTable.getMessageTable().setModel(tableModel);
+        messageTable.getMessageTable().setModel(this.autoRepeaterStreamTableModel);
         WebSocketMessageEditor messageEditor = this.api.userInterface().createWebSocketMessageEditor(EditorOptions.READ_ONLY);
+
+        messageTable.getMessageTable().getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent e) {
+                if (!e.getValueIsAdjusting()) {
+                    int selectedRow = messageTable.getMessageTable().getSelectedRow();
+                    if (selectedRow != -1) {
+                        // TODO: better way to byte[] -> ByteArray
+                        messageEditor.setContents(ByteArray.byteArray(new String(autoRepeaterStreamTableModel.getStream(selectedRow).getRawMessage())));
+                        api.logging().logToOutput("Selected row: " + selectedRow);
+                    }
+                }
+            }
+        });
 
         // Assign components
         originalSocketSplit.setLeftComponent(messageTable.getContainer());
         originalSocketSplit.setRightComponent(messageEditor.uiComponent());
         originalSocketSplit.setDividerLocation(800);
-        requestTabbedPane.addTab("Source Socket", originalSocketSplit);
+        requestTabbedPane.addTab("Target Socket", originalSocketSplit);
 
 
         /*rowSorter.setRowFilter(new RowFilter<TableModel, Integer>() {
@@ -128,7 +147,8 @@ public class AutoRepeaterTab implements ContainerProvider {
                         selectedSocketId,
                         selectedTargetId,
                         Direction.CLIENT_TO_SERVER,
-                        tabId
+                        tabId,
+                        autoRepeaterStreamTableModel
                 ));
 
                 activateWSAutoRepeaterButton.setBackground(Color.decode("#008000"));

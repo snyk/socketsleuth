@@ -1,6 +1,9 @@
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.core.ByteArray;
+import burp.api.montoya.proxy.websocket.InterceptedBinaryMessage;
+import burp.api.montoya.proxy.websocket.InterceptedTextMessage;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -33,6 +36,7 @@ public class WebSocketAutoRepeater {
 
     public void onMessageReceived(int socketId, InterceptedMessageFacade message) {
         for (AutoRepeaterConfig config : repeaters.values()) {
+            // Handle receive on source socket - we need to forward the message
             if (socketId == config.getSourceSocketId()) {
                 WebSocketContainer target = this.wsConnections.get(config.getTargetSocketId());
                 if (target == null) {
@@ -44,13 +48,46 @@ public class WebSocketAutoRepeater {
 
                 // Check direction in config
 
+                WebSocketStream streamItem;
                 if (message.isText()) {
                     target.getWebSocketCreation().proxyWebSocket().sendTextMessage(message.stringPayload(), message.direction());
+                    streamItem = new WebSocketStream(
+                            config.getStreamTableModel().getRowCount(),
+                            (InterceptedTextMessage) message.getInterceptedMessage(),
+                            LocalDateTime.now(),
+                            "");
                 } else {
                     // This is not ideal, we should be able to pass the raw byte[]
                     // TODO; handle raw byte[] to ByteArray
                     target.getWebSocketCreation().proxyWebSocket().sendBinaryMessage(ByteArray.byteArray(message.stringPayload()), message.direction());
+                    streamItem = new WebSocketStream(
+                            config.getStreamTableModel().getRowCount(),
+                            (InterceptedBinaryMessage) message.getInterceptedMessage(),
+                            LocalDateTime.now(),
+                            "");
                 }
+
+                streamItem.setInjected(true);
+                config.getStreamTableModel().addStream(streamItem);
+            }
+
+            // Handle receive on dst socket
+            WebSocketStream streamItem;
+            if (socketId == config.getTargetSocketId()) {
+                if (message.isText()) {
+                    streamItem = new WebSocketStream(
+                            config.getStreamTableModel().getRowCount(),
+                            (InterceptedTextMessage) message.getInterceptedMessage(),
+                            LocalDateTime.now(),
+                            "");
+                } else {
+                    streamItem = new WebSocketStream(
+                            config.getStreamTableModel().getRowCount(),
+                            (InterceptedBinaryMessage) message.getInterceptedMessage(),
+                            LocalDateTime.now(),
+                            "");
+                }
+                config.getStreamTableModel().addStream(streamItem);
             }
         }
     }

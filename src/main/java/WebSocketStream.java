@@ -9,12 +9,14 @@ public class WebSocketStream {
     private InterceptedMessageFacade interceptedMessage;
     private LocalDateTime time;
     private String comment;
+    private boolean injected;
 
     public WebSocketStream(int messageID, InterceptedTextMessage interceptedTextMessage, LocalDateTime time, String comment) {
         this.messageID = messageID;
         this.interceptedMessage = new InterceptedMessageFacade(interceptedTextMessage);
         this.time = time;
         this.comment = comment;
+        this.injected = false;
     }
 
     public WebSocketStream(int messageID, InterceptedBinaryMessage interceptedBinaryMessage, LocalDateTime time, String comment) {
@@ -22,6 +24,7 @@ public class WebSocketStream {
         this.interceptedMessage = new InterceptedMessageFacade(interceptedBinaryMessage);
         this.time = time;
         this.comment = comment;
+        this.injected = false;
     }
 
     public int getMessageID() {
@@ -74,5 +77,13 @@ public class WebSocketStream {
 
     public void setComment(String comment) {
         this.comment = comment;
+    }
+
+    public boolean isInjected() {
+        return injected;
+    }
+
+    public void setInjected(boolean injected) {
+        this.injected = injected;
     }
 }
