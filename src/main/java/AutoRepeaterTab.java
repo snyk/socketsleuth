@@ -1,6 +1,7 @@
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.ui.editor.EditorOptions;
 import burp.api.montoya.ui.editor.WebSocketMessageEditor;
+import burp.api.montoya.websocket.Direction;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
@@ -30,15 +31,19 @@ public class AutoRepeaterTab implements ContainerProvider {
     private TableModel sourceTableModel;
     private TableModel targetTableModel;
 
-    private int selectedSocketId;
-    private int selectedTargetId;
+    private Integer selectedSocketId;
+    private Integer selectedTargetId;
 
     AutoRepeaterTableModel tableModel;
+    WebSocketAutoRepeater webSocketAutoRepeater;
+    int tabId;
 
-    public AutoRepeaterTab(int tabID, MontoyaApi api, TableModel tableModel) {
+    public AutoRepeaterTab(int tabID, MontoyaApi api, TableModel tableModel, WebSocketAutoRepeater webSocketAutoRepeater) {
         this.api = api;
+        this.tabId = tabID;
         this.tableModel = new AutoRepeaterTableModel((AbstractTableModel) tableModel);
         this.connectionConfigTable.setModel(tableModel);
+        this.webSocketAutoRepeater = webSocketAutoRepeater;
 
         TableRowSorter<TableModel> rowSorter = new TableRowSorter<TableModel>(this.tableModel);
 
@@ -92,6 +97,46 @@ public class AutoRepeaterTab implements ContainerProvider {
     }
 
     private void setButtonEvents() {
+        // Activate WS Repeater button
+        this.activateWSAutoRepeaterButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Is it running and we should stop?
+                if (webSocketAutoRepeater.hasRepeaterForTab(tabId)) {
+                    webSocketAutoRepeater.removeRepeaterByTabId(tabId);
+
+                    activateWSAutoRepeaterButton.setBackground(new Color(-65536));
+                    activateWSAutoRepeaterButton.setForeground(new Color(-12935007));
+                    activateWSAutoRepeaterButton.setText("Activate WS Auto Repeater");
+                    return;
+                }
+
+                // Check configuration
+                if (selectedTargetId == null || selectedSocketId == null)  {
+                    return;
+                }
+
+                if (selectedSocketId == selectedTargetId) {
+                    return;
+                }
+
+                TableModel tm = connectionConfigTable.getModel();
+
+                api.logging().logToOutput("config accepted");
+                // Set in autorepeater
+                webSocketAutoRepeater.setRepeater(tabId, new AutoRepeaterConfig(
+                        selectedSocketId,
+                        selectedTargetId,
+                        Direction.CLIENT_TO_SERVER,
+                        tabId
+                ));
+
+                activateWSAutoRepeaterButton.setBackground(Color.decode("#008000"));
+                activateWSAutoRepeaterButton.setForeground(Color.WHITE);
+                activateWSAutoRepeaterButton.setText("Stop WS Auto Repeater");
+            }
+        });
+
         // Source socket button
         this.selectSourceButton.addActionListener(new ActionListener() {
             @Override

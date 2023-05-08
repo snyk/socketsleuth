@@ -27,6 +27,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static burp.api.montoya.ui.editor.EditorOptions.READ_ONLY;
@@ -35,6 +37,7 @@ public class SocketSleuth implements BurpExtension {
 
     MontoyaApi api;
     JSONRPCResponseMonitor responseMonitor;
+    WebSocketAutoRepeater webSocketAutoRepeater;
     JTabbedPane socketSleuthTabPanel;
     SleuthUI uiForm;
 
@@ -45,6 +48,7 @@ public class SocketSleuth implements BurpExtension {
     WebSocketInterceptionRulesTableModel interceptionRulesModel;
 
     WebSocketMatchReplaceRulesTableModel matchReplaceRulesTableModel;
+    Map<Integer, WebSocketContainer> wsConnections;
     SocketSleuthTabbedPanel<WSIntruder> intruderTab;
     SocketSleuthTabbedPanel<AutoRepeaterTab> autoRepeaterTab;
 
@@ -57,6 +61,8 @@ public class SocketSleuth implements BurpExtension {
         this.interceptionRulesModel = new WebSocketInterceptionRulesTableModel();
         this.matchReplaceRulesTableModel = new WebSocketMatchReplaceRulesTableModel();
         this.responseMonitor = new JSONRPCResponseMonitor(api);
+        this.wsConnections = new HashMap<>();
+        this.webSocketAutoRepeater = new WebSocketAutoRepeater(api, this.wsConnections);
 
         api.extension().setName("SocketSleuth");
         this.socketSleuthTabPanel = constructBurpUi();
@@ -67,11 +73,13 @@ public class SocketSleuth implements BurpExtension {
         // The table might not exist yet, check if there is bugs
         MyProxyWebSocketCreationHandler exampleWebSocketCreationHandler = new MyProxyWebSocketCreationHandler(api,
                 this.tableModel,
+                this.wsConnections,
                 this.uiForm.getConnectionTable(),
                 this.uiForm.getStreamTable(),
                 this.interceptionRulesModel,
                 this.matchReplaceRulesTableModel,
-                this.responseMonitor
+                this.responseMonitor,
+                this.webSocketAutoRepeater
         );
         api.proxy().registerWebSocketCreationHandler(exampleWebSocketCreationHandler);
     }
@@ -394,7 +402,7 @@ public class SocketSleuth implements BurpExtension {
     private JTabbedPane constructBurpUi() {
         JTabbedPane tabs = new JTabbedPane();
         this.intruderTab = SocketSleuthTabbedPanel.create("Test tabs", WSIntruder.class, this.api, this.tableModel, this.responseMonitor);
-        this.autoRepeaterTab = SocketSleuthTabbedPanel.create("Repeater", AutoRepeaterTab.class, this.api, this.tableModel);
+        this.autoRepeaterTab = SocketSleuthTabbedPanel.create("Repeater", AutoRepeaterTab.class, this.api, this.tableModel, this.webSocketAutoRepeater);
 
         tabs.addTab("History", this.constructHistoryTab());
         tabs.addTab("WS Intruder", this.intruderTab);

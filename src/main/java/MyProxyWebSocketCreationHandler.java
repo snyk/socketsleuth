@@ -18,24 +18,27 @@ class MyProxyWebSocketCreationHandler implements ProxyWebSocketCreationHandler {
     WebSocketInterceptionRulesTableModel interceptionRules;
     WebSocketMatchReplaceRulesTableModel matchReplaceRules;
     JSONRPCResponseMonitor responseMonitor;
+    WebSocketAutoRepeater webSocketAutoRepeater;
 
     public MyProxyWebSocketCreationHandler(
             MontoyaApi api,
             WebSocketConnectionTableModel tableModel,
-            JTable connectionTable,
+            Map<Integer, WebSocketContainer> wsConnections, JTable connectionTable,
             JTable streamTable,
             WebSocketInterceptionRulesTableModel interceptionRules,
             WebSocketMatchReplaceRulesTableModel matchReplaceRules,
-            JSONRPCResponseMonitor responseMonitor) {
+            JSONRPCResponseMonitor responseMonitor,
+            WebSocketAutoRepeater webSocketAutoRepeater) {
         this.api = api;
         this.logger = api.logging();
-        this.connections = new HashMap<>();
+        this.connections = wsConnections;
         this.tableModel = tableModel;
         this.connectionTable = connectionTable;
         this.streamTable = streamTable;
         this.interceptionRules = interceptionRules;
         this.matchReplaceRules = matchReplaceRules;
         this.responseMonitor = responseMonitor;
+        this.webSocketAutoRepeater = webSocketAutoRepeater;
     }
 
     @Override
@@ -61,7 +64,9 @@ class MyProxyWebSocketCreationHandler implements ProxyWebSocketCreationHandler {
                 webSocketCreation.proxyWebSocket()
         ));
 
-        this.connections.put(this.connections.size(), container);
+        // TODO: Investigate if we can get the socketId form burp instead of making our own
+        int socketId = this.connections.size();
+        this.connections.put(socketId, container);
         // Get the new row from container and add to actual table model
         this.tableModel.addConnection(container.getTableRow());
 
@@ -78,6 +83,7 @@ class MyProxyWebSocketCreationHandler implements ProxyWebSocketCreationHandler {
         webSocketCreation.proxyWebSocket().registerProxyMessageHandler(
                 new MyProxyWebSocketMessageHandler(
                         this.api,
+                        socketId,
                         container.getTableRow().getStreamModel(),
                         this.streamTable,
                         this.interceptionRules,
@@ -89,7 +95,8 @@ class MyProxyWebSocketCreationHandler implements ProxyWebSocketCreationHandler {
                                 tableModel.fireTableDataChanged();
                             }
                         },
-                        this.responseMonitor
+                        this.responseMonitor,
+                        this.webSocketAutoRepeater
                 )
         );
     }

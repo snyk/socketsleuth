@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 class MyProxyWebSocketMessageHandler implements ProxyMessageHandler {
 
     MontoyaApi api;
+    int socketId;
     Logging logger;
 
     WebSocketStreamTableModel streamModel;
@@ -19,16 +20,20 @@ class MyProxyWebSocketMessageHandler implements ProxyMessageHandler {
 
     SocketCloseCallback socketCloseCallback;
     JSONRPCResponseMonitor responseMonitor;
+    WebSocketAutoRepeater webSocketAutoRepeater;
 
     public MyProxyWebSocketMessageHandler(
             MontoyaApi api,
+            int socketId,
             WebSocketStreamTableModel streamModel,
             JTable streamTable,
             WebSocketInterceptionRulesTableModel interceptionRules,
             WebSocketMatchReplaceRulesTableModel matchReplaceRules,
             SocketCloseCallback socketCloseCallback,
-            JSONRPCResponseMonitor responseMonitor) {
+            JSONRPCResponseMonitor responseMonitor,
+            WebSocketAutoRepeater webSocketAutoRepeater) {
         this.api = api;
+        this.socketId = socketId;
         this.logger = api.logging();
         this.streamModel = streamModel;
         this.streamTable = streamTable;
@@ -36,6 +41,7 @@ class MyProxyWebSocketMessageHandler implements ProxyMessageHandler {
         this.matchReplaceRules = matchReplaceRules;
         this.socketCloseCallback = socketCloseCallback;
         this.responseMonitor = responseMonitor;
+        this.webSocketAutoRepeater =  webSocketAutoRepeater;
     }
 
     // Strange - this seems to also catch messages being sent
@@ -43,6 +49,9 @@ class MyProxyWebSocketMessageHandler implements ProxyMessageHandler {
     public TextMessageReceivedAction handleTextMessageReceived(InterceptedTextMessage interceptedTextMessage) {
         // Handle message detections
         this.responseMonitor.processResponse(interceptedTextMessage.payload());
+
+        // Handle autorepeater rules
+        this.webSocketAutoRepeater.onMessageReceived(this.socketId, new InterceptedMessageFacade(interceptedTextMessage));
 
         int selectedRowIndex = streamTable.getSelectedRow();
         ListSelectionModel selectionModel = streamTable.getSelectionModel();

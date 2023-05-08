@@ -34,8 +34,9 @@ public class CustomTabbedPanel extends JPanel {
         add(buttonPanel, BorderLayout.NORTH);
     }
 
+    //TODO: remove this class. Its not used anymore (I think)
     private void addNewTab() {
-        AutoRepeaterTab newTabContent = new AutoRepeaterTab(tabbedPane.getTabCount(), null, this.tableModel);
+        AutoRepeaterTab newTabContent = new AutoRepeaterTab(tabbedPane.getTabCount(), null, this.tableModel, null);
         int newIndex = tabbedPane.getTabCount();
         String title = "Tab " + (newIndex + 1);
         tabbedPane.addTab(title, newTabContent.getContainer());
