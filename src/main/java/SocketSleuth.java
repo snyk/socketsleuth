@@ -46,6 +46,7 @@ public class SocketSleuth implements BurpExtension {
 
     WebSocketMatchReplaceRulesTableModel matchReplaceRulesTableModel;
     SocketSleuthTabbedPanel<WSIntruder> intruderTab;
+    SocketSleuthTabbedPanel<AutoRepeaterTab> autoRepeaterTab;
 
     @Override
     public void initialize(MontoyaApi api) {
@@ -393,10 +394,11 @@ public class SocketSleuth implements BurpExtension {
     private JTabbedPane constructBurpUi() {
         JTabbedPane tabs = new JTabbedPane();
         this.intruderTab = SocketSleuthTabbedPanel.create("Test tabs", WSIntruder.class, this.api, this.tableModel, this.responseMonitor);
+        this.autoRepeaterTab = SocketSleuthTabbedPanel.create("Repeater", AutoRepeaterTab.class, this.api, this.tableModel);
 
         tabs.addTab("History", this.constructHistoryTab());
-        tabs.addTab("WS Intruder", intruderTab);
-        tabs.addTab("WS auto-repeater", this.constructRepeaterTab());
+        tabs.addTab("WS Intruder", this.intruderTab);
+        tabs.addTab("WS auto-repeater", this.autoRepeaterTab);
         tabs.addTab("Settings", this.constructSettingsTab());
         return tabs;
     }

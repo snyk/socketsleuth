@@ -35,7 +35,7 @@ public class CustomTabbedPanel extends JPanel {
     }
 
     private void addNewTab() {
-        AutoRepeaterTab newTabContent = new AutoRepeaterTab(this.tableModel);
+        AutoRepeaterTab newTabContent = new AutoRepeaterTab(tabbedPane.getTabCount(), null, this.tableModel);
         int newIndex = tabbedPane.getTabCount();
         String title = "Tab " + (newIndex + 1);
         tabbedPane.addTab(title, newTabContent.getContainer());
