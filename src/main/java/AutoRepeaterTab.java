@@ -42,6 +42,10 @@ public class AutoRepeaterTab implements ContainerProvider {
     WebSocketAutoRepeaterStreamTableModel autoRepeaterStreamTableModel;
     int tabId;
 
+    String CLIENT_TO_SERVER = "Client to Server";
+    String SERVER_TO_CLIENT = "Server to Client";
+    String BIDIRECTIONAL = "Bidirectional";
+
     public AutoRepeaterTab(int tabID, MontoyaApi api, TableModel tableModel, WebSocketAutoRepeater webSocketAutoRepeater) {
         this.api = api;
         this.tabId = tabID;
@@ -66,7 +70,8 @@ public class AutoRepeaterTab implements ContainerProvider {
             @Override
             public void valueChanged(ListSelectionEvent e) {
                 if (!e.getValueIsAdjusting()) {
-                    int selectedRow = messageTable.getMessageTable().getSelectedRow();
+                    int selectedViewIndex = messageTable.getMessageTable().getSelectedRow();
+                    int selectedRow = messageTable.getMessageTable().convertRowIndexToModel(selectedViewIndex);
                     if (selectedRow != -1) {
                         // TODO: better way to byte[] -> ByteArray
                         messageEditor.setContents(ByteArray.byteArray(new String(autoRepeaterStreamTableModel.getStream(selectedRow).getRawMessage())));
@@ -95,9 +100,9 @@ public class AutoRepeaterTab implements ContainerProvider {
         //this.connectionConfigTable.setRowSorter(rowSorter);
 
         DefaultComboBoxModel<String> cbModel = new DefaultComboBoxModel<String>();
-        cbModel.addElement("Client to Server");
-        cbModel.addElement("Server to Client");
-        cbModel.addElement("Bidirectional");
+        cbModel.addElement(CLIENT_TO_SERVER);
+        cbModel.addElement(SERVER_TO_CLIENT);
+        cbModel.addElement(BIDIRECTIONAL);
         this.directionCombo.setModel(cbModel);
 
         setButtonEvents();
@@ -141,12 +146,23 @@ public class AutoRepeaterTab implements ContainerProvider {
 
                 TableModel tm = connectionConfigTable.getModel();
 
-                api.logging().logToOutput("config accepted");
+                // set direction
+                // directionCombo.getSelectedItem();
+                Direction direction = null;
+                String selectedDirection = directionCombo.getSelectedItem().toString();
+                if (selectedDirection == CLIENT_TO_SERVER) {
+                    direction = Direction.CLIENT_TO_SERVER;
+                }
+
+                if (selectedDirection == SERVER_TO_CLIENT) {
+                    direction = Direction.SERVER_TO_CLIENT;
+                }
+
                 // Set in autorepeater
                 webSocketAutoRepeater.setRepeater(tabId, new AutoRepeaterConfig(
                         selectedSocketId,
                         selectedTargetId,
-                        Direction.CLIENT_TO_SERVER,
+                        direction,
                         tabId,
                         autoRepeaterStreamTableModel
                 ));

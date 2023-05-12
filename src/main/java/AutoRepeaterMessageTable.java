@@ -6,6 +6,10 @@ public class AutoRepeaterMessageTable {
     private JTable messageTable;
     private JPanel container;
 
+    public AutoRepeaterMessageTable() {
+        this.messageTable.setAutoCreateRowSorter(true);
+    }
+
     public JTextField getTableSearchField() {
         return tableSearchField;
     }

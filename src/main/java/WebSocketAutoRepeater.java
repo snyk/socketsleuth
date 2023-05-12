@@ -2,6 +2,7 @@ import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.core.ByteArray;
 import burp.api.montoya.proxy.websocket.InterceptedBinaryMessage;
 import burp.api.montoya.proxy.websocket.InterceptedTextMessage;
+import burp.api.montoya.websocket.Direction;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -46,7 +47,22 @@ public class WebSocketAutoRepeater {
 
                 api.logging().logToOutput("target is: " + target.getWebSocketCreation().upgradeRequest().url());
 
-                // Check direction in config
+                // Check direction in config - if config is set to BiDirectional we wont match these and allow it through
+                // regardless
+                api.logging().logToOutput("config: " + config.getDirection() + " DirectionENUM: " + Direction.CLIENT_TO_SERVER.toString() + " actual: " + message.direction().toString());
+
+                // When no direction is set, its bidirectional
+                if (config.getDirection() != null) {
+                    if (config.getDirection().toString() == Direction.CLIENT_TO_SERVER.toString()) {
+                        if (!message.direction().toString().equals("CLIENT_TO_SERVER")) continue;
+                    }
+
+                    if (config.getDirection().toString() == Direction.SERVER_TO_CLIENT.toString()) {
+                        if (!message.direction().toString().equals("SERVER_TO_CLIENT")) continue;
+                    }
+                }
+
+                api.logging().logToOutput("direction is: " + config.getDirection());
 
                 WebSocketStream streamItem;
                 if (message.isText()) {
