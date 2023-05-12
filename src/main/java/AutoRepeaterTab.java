@@ -50,6 +50,7 @@ public class AutoRepeaterTab implements ContainerProvider {
         this.api = api;
         this.tabId = tabID;
         this.tableModel = new AutoRepeaterTableModel((AbstractTableModel) tableModel);
+        this.connectionConfigTable.setAutoCreateRowSorter(true);
         this.connectionConfigTable.setModel(tableModel);
         this.webSocketAutoRepeater = webSocketAutoRepeater;
 
@@ -177,7 +178,8 @@ public class AutoRepeaterTab implements ContainerProvider {
         this.selectSourceButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                int selectedRow = connectionConfigTable.getSelectedRow();
+                int selectedView = connectionConfigTable.getSelectedRow();
+                int selectedRow = connectionConfigTable.convertRowIndexToModel(selectedView);
                 TableModel tm = connectionConfigTable.getModel();
 
                 if (selectedRow >= 0) {
@@ -202,7 +204,8 @@ public class AutoRepeaterTab implements ContainerProvider {
         this.selectTargetButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                int selectedRow = connectionConfigTable.getSelectedRow();
+                int selectedView = connectionConfigTable.getSelectedRow();
+                int selectedRow = connectionConfigTable.convertRowIndexToModel(selectedView);
                 TableModel tm = connectionConfigTable.getModel();
 
                 if (selectedRow >= 0) {

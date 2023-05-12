@@ -461,8 +461,8 @@ public class SocketSleuth implements BurpExtension {
                     return;
                 }
 
-                int selectedRowIndex = table.getSelectedRow();
-                // Not sure why this is happening
+                int selectedViewIndex = table.getSelectedRow();
+                int selectedRowIndex = table.convertRowIndexToView(selectedViewIndex);
                 if (selectedRowIndex == -1) {
                     api.logging().raiseInfoEvent("selectedRowIndex is -1");
                     return;
@@ -495,8 +495,8 @@ public class SocketSleuth implements BurpExtension {
                 }
 
                 JTable messageTable = uiForm.getStreamTable();
-                int selectedRowIndex = messageTable.getSelectedRow();
-                // Not sure why this is happening
+                int selectedViewIndex = messageTable.getSelectedRow();
+                int selectedRowIndex = messageTable.convertRowIndexToView(selectedViewIndex);
                 if (selectedRowIndex == -1) {
                     api.logging().raiseInfoEvent("selectedRowIndex is -1");
                     return;

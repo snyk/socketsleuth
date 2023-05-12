@@ -12,6 +12,11 @@ public class SleuthUI {
     private JScrollPane socketConnectionScroll;
     private JSplitPane socketConnectionSplit;
 
+    public SleuthUI() {
+        this.connectionTable.setAutoCreateRowSorter(true);
+        this.streamTable.setAutoCreateRowSorter(true);
+    }
+
     public void setStreamVIewSplitPane(Component uiComponent) {
         streamVIewSplitPane.setRightComponent(uiComponent);
     }
