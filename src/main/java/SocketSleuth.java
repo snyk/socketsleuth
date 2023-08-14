@@ -438,11 +438,8 @@ public class SocketSleuth implements BurpExtension {
         HttpRequestEditor upgradeRequestViewer = ui.createHttpRequestEditor(READ_ONLY);
         uiForm.getSocketConnectionSplit().setRightComponent(upgradeRequestViewer.uiComponent());
 
-        // Super annoying - ui.createWebSocketMessageEditor exists but isn't implemented. Use raw editor for now
-        //RawEditor messageViewer = ui.createRawEditor(READ_ONLY);
         WebSocketMessageEditor messageViewer = ui.createWebSocketMessageEditor(READ_ONLY);
         uiForm.setStreamVIewSplitPane(messageViewer.uiComponent());
-        messageViewer.setContents(ByteArray.byteArray("hello world"));
 
         // Set a dummy model for WebSocket Message / steams with no data.
         this.uiForm.getStreamTable().setModel(new WebSocketStreamTableModel());
@@ -506,7 +503,7 @@ public class SocketSleuth implements BurpExtension {
                 int messageId = (int) messageTable.getValueAt(selectedRowIndex, 0);
                 WebSocketStreamTableModel messageTableModel = (WebSocketStreamTableModel) messageTable.getModel();
                 messageViewer.setContents(ByteArray.byteArray(messageTableModel.getStream(selectedRowIndex).getRawMessage()));
-                //messageViewer.setContents(ByteArray.byteArray("ffs + " + messageId));
+                //messageViewer.setContents(ByteArray.byteArray("id:  + " + messageId));
             }
         });
 

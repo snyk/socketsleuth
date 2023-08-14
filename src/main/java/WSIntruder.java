@@ -1,3 +1,4 @@
+import intruder.payloads.models.IPayloadModel;
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.core.ByteArray;
 import burp.api.montoya.proxy.websocket.ProxyWebSocket;
@@ -98,7 +99,7 @@ public class WSIntruder implements ContainerProvider {
                         break;
                     case SNIPER:
                         api.logging().logToOutput("its the sniper");
-                        setWsIntruderPanel(constructJSONRPCMethodPanel());
+                        setWsIntruderPanel(constructJSONRPCValueBruteForcerPanel());
                     default:
                         break;
                 }
@@ -154,6 +155,74 @@ public class WSIntruder implements ContainerProvider {
 
     private JPanel constructJSONRPCParamPanel() {
         return new JSONRPCParamBruteIntruder().getContainer();
+    }
+
+    private JPanel constructJSONRPCValueBruteForcerPanel() {
+        JSONRPCValueBruteForcer bruteForcer = new JSONRPCValueBruteForcer(this.api, this.messageEditor);
+        bruteForcer.getPayloadContainer().add(this.messageEditor.uiComponent());
+
+        DefaultComboBoxModel<BruteForcePayloadTypeOption> comboBoxModel = new DefaultComboBoxModel<>();
+        comboBoxModel.addElement(BruteForcePayloadTypeOption.SIMPLE_LIST);
+        comboBoxModel.addElement(BruteForcePayloadTypeOption.NUMBERS);
+        bruteForcer.getPayloadTypeCombo().setModel(comboBoxModel);
+
+        // Default payload type
+        setBruteForcerPayloadSimpleList(bruteForcer);
+
+        // Handle switching payload type
+        // TODO: there is a bug here when switching. The old event set on the start attack button remains
+        // so fires multiple times if the payload type has been changed
+        bruteForcer.getPayloadTypeCombo().addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                BruteForcePayloadTypeOption selectedOption = (BruteForcePayloadTypeOption) bruteForcer.getPayloadTypeCombo().getSelectedItem();
+
+                switch (selectedOption) {
+                    case SIMPLE_LIST:
+                        setBruteForcerPayloadSimpleList(bruteForcer);
+                        break;
+                    case NUMBERS:
+                        api.logging().logToOutput("You selected: " + selectedOption);
+                        // Add your code here for "Numbers" option
+                        break;
+                    default:
+                        api.logging().logToOutput("default hit...");
+                        break;
+
+                }
+
+            }
+        });
+
+        return bruteForcer.getContainer();
+    }
+
+    private void setBruteForcerPayloadSimpleList(JSONRPCValueBruteForcer bruteForcer) {
+        IntruderPayloadTypeSimpleList simpleList = new IntruderPayloadTypeSimpleList(this.api);
+        bruteForcer.setPayloadType(simpleList);
+
+        bruteForcer.getStartAttackButton().addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (bruteForcer.getExecutor().isRunning()) {
+                    api.logging().logToOutput("Its already running running - please wait.");
+                    return;
+                }
+
+                int minDelay = (int) bruteForcer.getMinDelaySpinner().getModel().getValue();
+                int maxDelay = (int) bruteForcer.getMaxDelaySpinner().getModel().getValue();
+                bruteForcer.getExecutor().setMinDelay(minDelay);
+                bruteForcer.getExecutor().setMaxDelay(maxDelay);
+
+                bruteForcer.getExecutor().start(
+                        proxyWebSocket,
+                        simpleList.getPayloadModel(),
+                        messageEditor.getContents().toString()
+                );
+            }
+        });
+
+
     }
 
     private JPanel constructJSONRPCMethodPanel() {

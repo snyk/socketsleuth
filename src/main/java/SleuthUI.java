@@ -15,6 +15,8 @@ public class SleuthUI {
     public SleuthUI() {
         this.connectionTable.setAutoCreateRowSorter(true);
         this.streamTable.setAutoCreateRowSorter(true);
+        this.socketConnectionSplit.setDividerLocation(900);
+        this.streamVIewSplitPane.setDividerLocation(900);
     }
 
     public void setStreamVIewSplitPane(Component uiComponent) {

@@ -8,7 +8,7 @@ import java.util.EventObject;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
-class JSONRPCRequest {
+    class JSONRPCRequest {
     private int intruderTabId;
     private String messageId;
     private JSONObject request;
