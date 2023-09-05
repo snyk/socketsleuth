@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+
+# IntelliJ files
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+target/
+
+# Compiled class files
+*.class
+
+# Maven files
+log/
+*.log
+dependency-reduced-pom.xml
+buildNumber.properties
+*.orig
+
+# Gradle files
+.gradle/
+build/
+.gradle-build/
+.gradle-test/
+.gradle-cache/
+.gradle-java-home/

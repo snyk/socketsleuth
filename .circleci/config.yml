@@ -1,0 +1,14 @@
+version: 2.1
+
+orbs:
+  prodsec: snyk/prodsec-orb@1.0
+
+workflows:
+  version: 2
+  CICD:
+    jobs:
+      - prodsec/secrets-scan: # DO NOT REMOVE OR MOVE THIS LINE
+          name: Scan repository for secrets
+          context:
+            - snyk-bot-slack
+          channel: alerts-security-labs
