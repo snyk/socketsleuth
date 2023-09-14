@@ -1,3 +1,5 @@
+![https://snyk.io/test/github/snyk/socketsleuth/badge.svg](https://snyk.io/test/github/snyk/socketsleuth/badge.svg)
+
 # SocketSleuth: Burp Suite Extension for websocket testing
 ## Overview
 SocketSleuth aims to enhance Burp Suite's websocket testing capabilities and make testing websocket based applications easier. This extension is currently in beta release but contains some powerful features such as a new websocket focused history tab, match and replace rules for websockets, an intruder like utility, and a message autorepeater for authorization testing.
@@ -8,11 +10,11 @@ SocketSleuth aims to enhance Burp Suite's websocket testing capabilities and mak
 ### Steps
 1. Clone the repository
    ```
-   git clone https://github.com/snyk/SocketSleuth.git
+   git clone https://github.com/snyk/socketsleuth.git
    ```
 2. Navigate to the project directory
    ```
-   cd SocketSleuth
+   cd socketsleuth
    ```
 3. Build the project using Maven
    ```
