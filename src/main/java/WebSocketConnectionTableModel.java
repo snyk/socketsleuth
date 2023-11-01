@@ -35,6 +35,13 @@ public class WebSocketConnectionTableModel extends AbstractTableModel {
         connections.remove(row);
         fireTableDataChanged();
     }
+    public void removeAllConnection() {
+            int rowCount = connections.size();
+            if (rowCount > 0) {
+                connections.clear();
+                fireTableRowsDeleted(0,rowCount-1);
+            }
+    }
 
     public WebsocketConnectionTableRow getConnection(int row) {
         return connections.get(row);
