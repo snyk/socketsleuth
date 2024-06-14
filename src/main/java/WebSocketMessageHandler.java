@@ -73,19 +73,20 @@ class WebSocketMessageHandler implements ProxyMessageHandler {
         // Handle message detections
         this.responseMonitor.processResponse(interceptedTextMessage.payload());
 
-        // Handle autorepeater rules
-        this.webSocketAutoRepeater.onMessageReceived(this.socketId, new InterceptedMessageFacade(interceptedTextMessage));
 
         int selectedRowIndex = streamTable.getSelectedRow();
         ListSelectionModel selectionModel = streamTable.getSelectionModel();
         boolean isSelectionEmpty = selectionModel.isSelectionEmpty();
-
-        streamModel.addStream(new WebSocketStream(
+        WebSocketStream stream=new WebSocketStream(
                 streamModel.getRowCount(),
                 interceptedTextMessage,
                 LocalDateTime.now(),
                 ""
-        ));
+        );
+        // Handle autorepeater rules
+        this.webSocketAutoRepeater.onMessageReceived(this.socketId, stream.getInterceptedMessage());
+
+        streamModel.addStream(stream);
 
         // Restore the selection if there was a previous selection
         if (!isSelectionEmpty) {
@@ -100,13 +101,13 @@ class WebSocketMessageHandler implements ProxyMessageHandler {
             return TextMessageReceivedAction.intercept(interceptedTextMessage);
         }
 
-        if (shouldDropMessage(this.matchReplaceRules, new InterceptedMessageFacade(interceptedTextMessage))) {
+        if (shouldDropMessage(this.matchReplaceRules, stream.getInterceptedMessage())) {
             return TextMessageReceivedAction.drop();
         }
 
         interceptedTextMessage = (InterceptedTextMessage) handleMatchAndReplace(
                 this.matchReplaceRules,
-                new InterceptedMessageFacade(interceptedTextMessage)
+                stream.getInterceptedMessage()
         );
 
         return TextMessageReceivedAction.continueWith(interceptedTextMessage);
