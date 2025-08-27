@@ -1,14 +1,29 @@
 version: 2.1
 
 orbs:
-  prodsec: snyk/prodsec-orb@1.0
+  prodsec: snyk/prodsec-orb@1
+
+jobs:
+  security-scans:
+    docker:
+      - image: cimg/openjdk:17.0.2
+    resource_class: small
+    steps:
+      - checkout
+      - prodsec/security_scans:
+          mode: auto
+          iac-scan: disabled
 
 workflows:
   version: 2
   CICD:
     jobs:
-      - prodsec/secrets-scan: # DO NOT REMOVE OR MOVE THIS LINE
+      - prodsec/secrets-scan:
           name: Scan repository for secrets
           context:
             - snyk-bot-slack
           channel: alerts-security-labs
+      - security-scans:
+          name: Security Scans
+          context:
+            - security-labs-snyk
