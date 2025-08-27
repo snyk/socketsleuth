@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 import burp.api.montoya.BurpExtension;
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.core.ByteArray;
@@ -33,6 +34,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
@@ -125,7 +128,7 @@ public class SocketSleuth implements BurpExtension {
 
                         if (form.getConditionTextField().getText().trim() == "") return;
 
-                        Object[] newRow = new Object[] {
+                        Object[] newRow = new Object[]{
                                 true, // enabled
                                 selectedMatchType, // match type
                                 selectedDirection, // direction
@@ -255,7 +258,7 @@ public class SocketSleuth implements BurpExtension {
                         String replace = form.getReplaceText().getText();
 
                         // Create new row + add
-                        Object[] newRow = new Object[] {
+                        Object[] newRow = new Object[]{
                                 true, // enabled
                                 selectedMatchType,
                                 selectedDirection,
@@ -353,6 +356,7 @@ public class SocketSleuth implements BurpExtension {
 
         return settingsUI.getContainer();
     }
+
     private void bindMessageTableContextMenu(JTable table) {
         // Create a popup menu
         JPopupMenu popupMenu = new JPopupMenu();
@@ -365,7 +369,55 @@ public class SocketSleuth implements BurpExtension {
                     return;
                 }
                 AbstractTableModel tm = (AbstractTableModel) table.getModel();
-                CommentManager.addEditComment(api.userInterface().swingUtils().suiteFrame(),table, index, 5);
+                CommentManager.addEditComment(api.userInterface().swingUtils().suiteFrame(), table, index, 5);
+            }
+        });
+        JMenuItem clearHistory = new JMenuItem("Clear History");
+        clearHistory.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                WebSocketStreamTableModel model = (WebSocketStreamTableModel) table.getModel();
+                model.removeAllStream();
+            }
+        });
+        JMenuItem exportCSV = new JMenuItem("Export data as CSV File");
+        exportCSV.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                WebSocketStreamTableModel model = (WebSocketStreamTableModel) table.getModel();
+                int rowCount = model.getRowCount();
+                int columnCount = model.getColumnCount();
+                String csvFileName = JOptionPane.showInputDialog("Enter the CSV file name:","d://filename.csv");
+
+                if (csvFileName == null || csvFileName.isEmpty()) {
+                    JOptionPane.showMessageDialog(null, "Invalid file name.", "Error", JOptionPane.ERROR_MESSAGE);
+                } else {
+                    try (FileWriter writer = new FileWriter(csvFileName)) {
+                        writer.append("sep=;\n");
+                        for (int i = 0; i < columnCount; i++) {
+                            writer.append(model.getColumnName(i));
+                            if (i < columnCount - 1) {
+                                writer.append(";");
+                            }
+                        }
+                        writer.append("\n");
+
+                        for (int i = 0; i < rowCount; i++) {
+                            for (int j = 0; j < columnCount; j++) {
+                                writer.append(model.getValueAt(i, j).toString());
+                                if (j < columnCount - 1) {
+                                    writer.append(";");
+                                }
+                            }
+                            writer.append("\n");
+                        }
+
+                        JOptionPane.showMessageDialog(null, "CSV file created: " + csvFileName, "Success", JOptionPane.INFORMATION_MESSAGE);
+                    } catch (IOException ex) {
+                        JOptionPane.showMessageDialog(null, "Error creating CSV file.", "Error", JOptionPane.ERROR_MESSAGE);
+                        ex.printStackTrace();
+                    }
+                }
             }
         });
 
@@ -388,6 +440,8 @@ public class SocketSleuth implements BurpExtension {
         });
 
         popupMenu.add(commentItem);
+        popupMenu.add(clearHistory);
+        popupMenu.add(exportCSV);
         popupMenu.add(intruderItem);
 
         table.addMouseListener(new MouseAdapter() {
@@ -441,7 +495,15 @@ public class SocketSleuth implements BurpExtension {
         uiForm.setStreamVIewSplitPane(messageViewer.uiComponent());
 
         // Set a dummy model for WebSocket Message / steams with no data.
-        this.uiForm.getStreamTable().setModel(new WebSocketStreamTableModel());
+        WebSocketStreamTableModel model = new WebSocketStreamTableModel();
+        this.uiForm.getStreamTable().setModel(model);
+        this.uiForm.getStreamTable().setAutoCreateRowSorter(true);
+
+
+        // Set table model for WebSocket connections
+        table.setModel(this.tableModel);
+        this.bindConnectionTableContextMenu(table);
+
 
         // Set table model for WebSocket connections
         table.setModel(this.tableModel);
@@ -522,8 +584,10 @@ public class SocketSleuth implements BurpExtension {
     private void bindConnectionTableContextMenu(JTable table) {
         JPopupMenu popupMenu = new JPopupMenu();
         JMenuItem commentItem = new JMenuItem("Add comment");
+        JMenuItem clearHistory = new JMenuItem("Clear History");
 
         popupMenu.add(commentItem);
+        popupMenu.add(clearHistory);
 
         commentItem.addActionListener(new ActionListener() {
             @Override
@@ -535,7 +599,13 @@ public class SocketSleuth implements BurpExtension {
                 CommentManager.addEditComment(api.userInterface().swingUtils().suiteFrame(), table, index, 6);
             }
         });
-
+        clearHistory.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                WebSocketConnectionTableModel model = (WebSocketConnectionTableModel) table.getModel();
+                model.removeAllConnection();
+            }
+        });
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseReleased(MouseEvent e) {

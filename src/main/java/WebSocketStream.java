@@ -41,7 +41,9 @@ public class WebSocketStream {
         this.comment = comment;
         this.injected = false;
     }
-
+    public InterceptedMessageFacade getInterceptedMessage() {
+        return interceptedMessage;
+    }
     public int getMessageID() {
         return messageID;
     }
@@ -53,7 +55,9 @@ public class WebSocketStream {
     public String getMessage() {
         return this.interceptedMessage.stringPreviewPayload();
     }
-
+    public String getOldMessage() {
+        return this.interceptedMessage.stringPreviewOldPayload();
+    }
     public byte[] getRawMessage() {
         return  this.interceptedMessage.binaryPayload();
     }
