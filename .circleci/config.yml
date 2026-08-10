@@ -22,8 +22,10 @@ workflows:
           name: Scan repository for secrets
           context:
             - snyk-bot-slack
+            - prodsec-orb-runtime
           channel: alerts-security-labs
       - security-scans:
           name: Security Scans
           context:
             - security-labs-snyk
+            - prodsec-orb-runtime
