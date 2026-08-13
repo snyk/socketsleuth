@@ -24,8 +24,8 @@ public class WebSocketStreamTableModel extends AbstractTableModel {
     private static final long serialVersionUID = 1L;
 
     private List<WebSocketStream> streams = new ArrayList<>();
-    private String[] columns = { "Message ID", "Message", "Direction", "Length", "Time", "Comment" };
-    private Class<?>[] columnTypes = { Integer.class, String.class, String.class, Integer.class, LocalDateTime.class, String.class };
+    private String[] columns = { "Message ID", "OldMessage","Message", "Direction", "Length", "Time", "Comment" };
+    private Class<?>[] columnTypes = { Integer.class, String.class, String.class, String.class, Integer.class, LocalDateTime.class, String.class };
 
     public void addStream(WebSocketStream stream) {
         streams.add(stream);
@@ -35,6 +35,13 @@ public class WebSocketStreamTableModel extends AbstractTableModel {
     public void removeStream(int row) {
         streams.remove(row);
         fireTableDataChanged();
+    }
+    public void removeAllStream() {
+        int rowCount = streams.size();
+        if (rowCount > 0) {
+            streams.clear();
+            fireTableRowsDeleted(0,rowCount-1);
+    }
     }
 
     public WebSocketStream getStream(int row) {
@@ -67,14 +74,16 @@ public class WebSocketStreamTableModel extends AbstractTableModel {
             case 0:
                 return stream.getMessageID();
             case 1:
-                return stream.getMessage();
+                return stream.getOldMessage();
             case 2:
-                return stream.getDirection();
+                return stream.getMessage();
             case 3:
-                return stream.getLength();
+                return stream.getDirection();
             case 4:
-                return stream.getTime();
+                return stream.getLength();
             case 5:
+                return stream.getTime();
+            case 6:
                 return stream.getComment();
             default:
                 return null;

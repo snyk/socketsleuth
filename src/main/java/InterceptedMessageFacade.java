@@ -21,12 +21,14 @@ import burp.api.montoya.websocket.Direction;
 public class InterceptedMessageFacade {
     private final boolean isText;
     private InterceptedTextMessage textMessage;
+    private InterceptedTextMessage oldTextMessage;
     private InterceptedBinaryMessage binaryMessage;
 
     public InterceptedMessageFacade(InterceptedTextMessage textMessage) {
         this.isText = true;
         this.textMessage = textMessage;
         this.binaryMessage = null;
+        this.oldTextMessage=null;
     }
 
     public Object getInterceptedMessage() {
@@ -37,6 +39,7 @@ public class InterceptedMessageFacade {
         this.isText = false;
         this.textMessage = null;
         this.binaryMessage = binaryMessage;
+        this.oldTextMessage=null;
     }
 
     public void setStringPayload(String payload) {
@@ -56,6 +59,7 @@ public class InterceptedMessageFacade {
     }
 
     private void modifyPayload(InterceptedTextMessage message, String payload) {
+        this.oldTextMessage=this.textMessage;
         ModifiedTextMessage newMessage = new ModifiedTextMessage();
         newMessage.setDirection(message.direction());
         newMessage.setAnnotations(message.annotations());
@@ -74,6 +78,13 @@ public class InterceptedMessageFacade {
 
     public String stringPreviewPayload() {
         return isText ? textMessage.payload() : new String("binary");
+    }
+    public String stringPreviewOldPayload() {
+        if(oldTextMessage!=null){
+        return    isText ? oldTextMessage.payload() : new String("binary");
+        }else{
+            return new String("");
+        }
     }
 
     public byte[] binaryPayload() {
